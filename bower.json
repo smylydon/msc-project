@@ -1,0 +1,13 @@
+{
+  "name": "msc-project",
+  "version": "0.0.1",
+  "description": "masters degree project",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "components"
+  ],
+  "dependencies": {
+    "jquery": "^2.2.2"
+  }
+}

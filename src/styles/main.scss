@@ -1,0 +1,75 @@
+// fonts
+@import url('/fonts/Raleway-Regular.css');
+
+// variables
+$font-fancy: Raleway-Regular;
+$font-base: "Courier New", Courier, monospace;
+$base-color: rgba(189, 195, 199, 1);
+
+// semi-sensible defaults
+html {
+  font-size: 62.5%;
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: $base-color;
+}
+
+body {
+  font-size: 1.4rem;
+  font-family: $font-base;
+  padding: 3rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-fancy;
+}
+
+
+/////
+li {
+    list-style: none;
+}
+li:before {
+    content: "✓ ";
+}
+
+input {
+    border: none;
+    width: 80px;
+    font-size: 14px;
+    padding: 2px;
+}
+
+input:hover {
+    background-color: #eee;
+}
+
+input:focus {
+    background-color: #ccf;
+}
+
+input:not(:focus) {
+    text-align: right;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+td {
+    border: 1px solid #999;
+    padding: 0;
+}
+
+tr:first-child td, td:first-child {
+    background-color: #ccc;
+    padding: 1px 3px;
+    font-weight: bold;
+    text-align: center;
+}
+
+footer {
+    font-size: 80%;
+}
