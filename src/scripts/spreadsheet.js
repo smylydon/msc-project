@@ -7,6 +7,18 @@ for (var i = 0; i < 6; i++) {
   }
 }
 
+function tokenize(value) {
+  var results = [];
+  var tokenRegEx =
+    /\s*([A-Z]|\d+|\d+|[+\-\/\*]|sum\(\s*[a-z]\d+\s*:\s*[a-z]\d+\s*\))/g;
+
+  var m;
+  while ((m = tokenRegEx.exec(value)) !== null) {
+    results.push(m[0]);
+  }
+  return result;
+}
+
 var DATA = {};
 var INPUTS = [].slice.call(document.querySelectorAll("input"));
 
