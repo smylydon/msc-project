@@ -7,18 +7,6 @@ for (var i = 0; i < 6; i++) {
   }
 }
 
-function tokenize(value) {
-  var results = [];
-  var tokenRegEx =
-    /\s*([A-Z]|\d+|\d+|[+\-\/\*]|sum\(\s*[a-z]\d+\s*:\s*[a-z]\d+\s*\))/g;
-
-  var m;
-  while ((m = tokenRegEx.exec(value)) !== null) {
-    results.push(m[0]);
-  }
-  return result;
-}
-
 var DATA = {};
 var INPUTS = [].slice.call(document.querySelectorAll("input"));
 
@@ -36,9 +24,10 @@ INPUTS.forEach(function (element) {
   function getter() {
     var value = localStorage[element.id] || "";
     if (value.charAt(0) === "=") {
-      console.log('DATA:', DATA, value.substring(1));
+      console.log('DATA:', tokenize(value.substring(1)));
       //DATA
-      return DATA.eval(value.substring(1));
+      //return DATA.eval( value.substring( 1 ) );
+      return 0;
     } else {
       return isNaN(parseFloat(value)) ? value : parseFloat(value);
     }
