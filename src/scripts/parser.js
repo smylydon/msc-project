@@ -1,9 +1,10 @@
-var parser = (function parse() {
+window.parser = (function () {
   var functionRegex = /(sum|avg|mean)\(\s*[a-z]\d+\s*:\s*[a-z]\d+\s*\)/i;
-  var cellRegex = /[A-Z]\d+/i;
+  var cellRegex = /^[A-Z]\d+$/i;
   var operatorRegex = /[+\-\/\*]/;
-  var numberRegex = /\d+(\.\d+)?/;
+  var numberRegex = /^\d+(\.\d+)?$/;
   var position = 0;
+  var tokens = [];
 
   function tokenize(value) {
     var results = [];
@@ -12,53 +13,60 @@ var parser = (function parse() {
 
     var m;
     while ((m = tokenRegEx.exec(value)) !== null) {
-      results.push(parseToken(m[0])); //parseToken
+      results.push(m[0]); //save token
     }
     return results;
   }
 
-  function createToken(value, type) {
-    return {
-      token: value,
-      type: type
-    };
-  }
-
-  function parsePrimary(value) {
-    var result = {};
-    value = value.trim();
-    if (operatorRegex.test(value)) {
-      result = createToken(value, 'operator');
-    } else if (numberRegex.test(value)) {
-      result = createToken(value, 'number');
-    } else if (/\(/.test(value)) {
-      result = createToken(value, 'leftparen');
-    } else if (/\)/.test(value)) {
-      result = createToken(value, 'rightparen');
-    } else if (cellRegex.test(value)) {
-      result = createToken(value, 'cellname');
-    } else if (functionRegex.test(value)) {
-      var name = '';
-      if (/sum/ig.test(value)) {
-        name = 'sum';
-      } else if (/(avg|mean)/ig.test(value) / ) {
-        name = "mean";
-      }
-      result = createToken(value, name);
-    } else {
-      result = createToken(value, '');
-    }
-    return result;
-  }
-
   function peek() {
-    return result[position];
+    var value = tokens[position];
+    return value;
   }
 
   function next() {
     var value = peek();
     position++;
     return value;
+  }
+
+  function createToken(value, type) {
+    position++;
+    return {
+      token: value,
+      type: type
+    };
+  }
+
+  function parsePrimary() {
+    var result = {};
+    var value = peek();
+    if (operatorRegex.test(value)) {
+      result = createToken(value, 'unary');
+      result.right = parseAdditive();
+    } else if (numberRegex.test(value)) {
+      result = createToken(value, 'number');
+    } else if (/^\($/.test(value)) {
+      result = createToken(value, 'leftparen');
+      result.left = parseAdditive();
+      value = peek();
+      if (value === ')') {
+        result.right = createToken(value, 'rightparen');
+      }
+    } else if (cellRegex.test(value)) {
+      result = createToken(value, 'cellname');
+    } else if (functionRegex.test(value)) {
+      var name = '';
+      if (/sum/ig.test(value)) {
+        name = 'sum';
+      } else if (/^(avg|mean)/ig.test(value)) {
+        name = "mean";
+      }
+      result = createToken(value, name);
+    } else {
+      result = createToken(value, '');
+    }
+    //console.log('valuing:', value, result);
+    return result;
   }
 
   function parseMultiplicative() {
@@ -68,10 +76,11 @@ var parser = (function parse() {
     while (token === '*' || token === '/') {
       token = next();
       expression = {
-        type: token,
+        token: token,
+        type: 'operator',
         left: expression,
         right: parsePrimary()
-      }
+      };
       token = peek();
     }
     return expression;
@@ -84,10 +93,11 @@ var parser = (function parse() {
     while (token === '+' || token === '-') {
       token = next();
       expression = {
-        type: token,
+        token: token,
+        type: 'operator',
         left: expression,
         right: parseMultiplicative()
-      }
+      };
       token = peek();
     }
     return expression;
@@ -95,7 +105,8 @@ var parser = (function parse() {
 
   function parse(value) {
     position = 0;
-    result = tokenize(value);
+    tokens = tokenize(value);
+    return parseAdditive();
   }
 
   return parse;

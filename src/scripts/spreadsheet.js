@@ -21,13 +21,55 @@ INPUTS.forEach(function (element) {
     window.computeAll();
   };
 
+  function calculate(token) {
+    var left = 0;
+    var right = 0;
+    var value = 0;
+
+    if (token.type === 'number') {
+      value = parseFloat(token.token);
+    } else if (token.type === 'cellname') {
+      value = DATA[token.token];
+    } else if (token.type === 'unary') {
+      right = calculate(token.right);
+      value = token.token === '+' ? right : 0 - right;
+    } else if (token.type === 'operator') {
+      switch (token.token) {
+        case '+':
+          left = calculate(token.left);
+          right = token.right ? calculate(token.right) : 0;
+          value = left + right;
+          break;
+        case '-':
+          left = calculate(token.left);
+          right = token.right ? calculate(token.right) : 0;
+          value = left - right;
+          break;
+        case '*':
+          left = calculate(token.left);
+          right = token.right ? calculate(token.right) : 1;
+          value = left * right;
+          break;
+        case '/':
+          left = calculate(token.left);
+          right = token.right ? calculate(token.right) : 1;
+          value = left / right;
+          break;
+      }
+    }
+    return value;
+  }
+
   function getter() {
     var value = localStorage[element.id] || "";
+    var total = 0;
     if (value.charAt(0) === "=") {
-      console.log('DATA:', tokenize(value.substring(1)));
+      value = window.parser(value.substring(1));
+      total = calculate(value);
+      console.log('DATA:', value, total);
       //DATA
       //return DATA.eval( value.substring( 1 ) );
-      return 0;
+      return total;
     } else {
       return isNaN(parseFloat(value)) ? value : parseFloat(value);
     }
