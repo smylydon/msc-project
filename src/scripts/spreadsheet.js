@@ -1,6 +1,6 @@
-for (var i = 0; i < 6; i++) {
+for (var i = 0; i < 4; i++) {
   var row = document.querySelector("table").insertRow(-1);
-  for (var j = 0; j < 6; j++) {
+  for (var j = 0; j < 4; j++) {
     var letter = String.fromCharCode("A".charCodeAt(0) + j - 1);
     row.insertCell(-1).innerHTML = i && j ? "<input id='" + letter + i + "'/>" :
       i || letter;
@@ -33,27 +33,25 @@ INPUTS.forEach(function (element) {
     } else if (token.type === 'unary') {
       right = calculate(token.right);
       value = token.token === '+' ? right : 0 - right;
+    } else if (token.type === "leftparen") {
+      left = calculate(token.left);
+      right = token.right;
+      if (right.type === 'rightparen') {
+        value = left;
+      }
     } else if (token.type === 'operator') {
       switch (token.token) {
         case '+':
-          left = calculate(token.left);
-          right = token.right ? calculate(token.right) : 0;
-          value = left + right;
-          break;
         case '-':
           left = calculate(token.left);
           right = token.right ? calculate(token.right) : 0;
-          value = left - right;
+          value = token.token === '+' ? (left + right) : (left - right);
           break;
         case '*':
-          left = calculate(token.left);
-          right = token.right ? calculate(token.right) : 1;
-          value = left * right;
-          break;
         case '/':
           left = calculate(token.left);
           right = token.right ? calculate(token.right) : 1;
-          value = left / right;
+          value = token.token === '*' ? (left * right) : (left / right);
           break;
       }
     }
@@ -66,9 +64,8 @@ INPUTS.forEach(function (element) {
     if (value.charAt(0) === "=") {
       value = window.parser(value.substring(1));
       total = calculate(value);
-      console.log('DATA:', value, total);
+      //console.log('DATA:', value, total);
       //DATA
-      //return DATA.eval( value.substring( 1 ) );
       return total;
     } else {
       return isNaN(parseFloat(value)) ? value : parseFloat(value);
