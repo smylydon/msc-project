@@ -8,15 +8,16 @@ import compress from 'compression';
 import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
+import handlebars from 'express-handlebars';
 //import mongoose from 'mongoose';
 import favicon from 'serve-favicon';
 // local
-//import './app/models'; // this MUST be done before controllers
 import config from './config';
 import controllers from './app/controllers';
+import sockets from './app/sockets';
 import logger from './app/helpers/logger';
-import handlebars from 'express-handlebars';
-import socket from 'socket.io';
+
+
 
 // EXPRESS SET-UP
 // create app
@@ -54,9 +55,8 @@ app.use((req, res, next) => {
 	err.status = 404;
 	next(err);
 });
- 
-// general errors
 
+// general errors
 app.use((err, req, res, next) => {
 	const sc = err.status || 500;
 	res.status(sc);
@@ -66,23 +66,13 @@ app.use((err, req, res, next) => {
 		stack: config.env === 'development' ? err.stack : ''
 	});
 });
-console.log('testing console.log');
 
 // START AND STOP
 const server = app.listen(config.port, () => {
 	logger.info(`listening on port ${config.port}`);
 });
 
-const io = socket(server);
-
-// set basic routes
-io.on('connect', function (client) {
-	console.log('a user connected');
-	client.on('join', function (data) {
-		console.log('client join:',data);
-		client.emit('messages', 'Hello from server');
-	});
-});
+sockets(server);
 
 process.on('SIGINT', () => {
 	logger.info('shutting down!');
