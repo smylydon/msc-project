@@ -18,7 +18,6 @@ import sockets from './app/sockets';
 import logger from './app/helpers/logger';
 
 
-
 // EXPRESS SET-UP
 // create app
 const app = express();

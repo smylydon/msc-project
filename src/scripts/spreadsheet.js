@@ -1,7 +1,7 @@
-for (var i = 0; i < 4; i++) {
+for (var i = 0; i < 6; i++) {
 	var row = document.querySelector("table")
 		.insertRow(-1);
-	for (var j = 0; j < 4; j++) {
+	for (var j = 0; j < 6; j++) {
 		var letter = String.fromCharCode("A".charCodeAt(0) + j - 1);
 		row.insertCell(-1)
 			.innerHTML = i && j ? "<input id='" + letter + i + "'/>" :
@@ -10,18 +10,29 @@ for (var i = 0; i < 4; i++) {
 }
 
 var DATA = {};
-var INPUTS = [].slice.call(document.querySelectorAll("input"));
+//var INPUTS = [].slice.call(document.querySelectorAll("input"));
+var INPUTS = $('input'); //get all inputs
 
-INPUTS.forEach(function (element) {
+INPUTS.each(function (index, elem) {
+	var element = $(elem);
 
-	element.onfocus = function (event) {
-		event.target.value = localStorage[event.target.id] || "";
-	};
+	element.asEventStream('focus')
+		.onValue(function (event) {
+			event.target.value = localStorage[event.target.id] || "";
+		});
 
-	element.onblur = function (event) {
-		localStorage[event.target.id] = event.target.value;
-		window.computeAll();
-	};
+	element.asEventStream('blur')
+		.onValue(function (event) {
+			var elementid = event.target.id;
+			var value = event.target.value;
+			localStorage[elementid] = value;
+			socket.emit('write', {
+				element: elementid,
+				value: value,
+				user_id: userId
+			});
+			window.computeAll();
+		});
 
 	function calculate(token) {
 		var left = 0;
@@ -61,12 +72,11 @@ INPUTS.forEach(function (element) {
 	}
 
 	function getter() {
-		var value = localStorage[element.id] || "";
+		var value = localStorage[element.attr('id')] || "";
 		var total = 0;
 		if (value.charAt(0) === "=") {
 			value = window.parser(value.substring(1));
 			total = calculate(value);
-			//console.log('DATA:', value, total);
 			//DATA
 			return total;
 		} else {
@@ -74,21 +84,24 @@ INPUTS.forEach(function (element) {
 		}
 	}
 
-	Object.defineProperty(DATA, element.id, {
+	Object.defineProperty(DATA, element.attr('id'), {
 		get: getter
 	});
 
-	Object.defineProperty(DATA, element.id.toLowerCase(), {
-		get: getter
-	});
+	Object.defineProperty(DATA, element.attr('id')
+		.toLowerCase(), {
+			get: getter
+		});
 
 });
 
 window.computeAll = (function () {
 	return function () {
-		INPUTS.forEach(function (element) {
+		INPUTS.each(function (index, elem) {
+			var element = $(elem);
+			//console.log('computeAll:', element, elem);
 			try {
-				element.value = DATA[element.id];
+				element.val(DATA[element.attr('id')]);
 			} catch (exception) {
 				//console.warn('Exception:', exception);
 			}
@@ -96,14 +109,21 @@ window.computeAll = (function () {
 	};
 })();
 
-
+var userId;
 /* eslint-disable */
 var socket = io.connect('http://localhost:5000');
 /* eslint-enable */
 
 socket.on('connect', function (data) {
-	console.log('connected:', data);
 	socket.emit('join', 'Hello World from client');
+});
+
+socket.on('userid', function (data) {
+	userId = data;
+});
+
+socket.on('update', function (data) {
+	console.log('write: ', data);
 });
 
 socket.on('messages', function (data) {
