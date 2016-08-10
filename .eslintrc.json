@@ -14,13 +14,10 @@
   "rules": {
     "arrow-body-style": [2, "as-needed"],
     "eqeqeq": 2,
-    "no-console": 1,
+    "no-console": 0,
     "no-undef-init": 2,
     "no-undefined": 2,
-    "no-unused-vars": [2, {
-      "vars": "all",
-      "args": "none"
-    }],
+    "no-unused-vars": [2, {"vars": "all", "args": "none"}],
     "no-use-before-define": 0,
     "no-useless-constructor": 2,
     "semi": [2, "always"]
