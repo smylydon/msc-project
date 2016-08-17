@@ -1,20 +1,23 @@
 {
-    "name": "msc-project",
-    "version": "0.0.1",
-    "description": "masters degree project",
-    "ignore": [
-        "**/.*",
-        "node_modules",
-        "components"
-    ],
-    "dependencies": {
-        "jquery": "^2.2.2",
-        "bacon": "^0.7.85",
-        "socket.io-client": "^1.4.8"
-    },
-    "overrides": {
-        "socket.io-client": {
-            "main": ["socket.io.js"]
-        }
+  "name": "msc-project",
+  "version": "0.0.1",
+  "description": "masters degree project",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "components"
+  ],
+  "dependencies": {
+    "jquery": "^2.2.2",
+    "bacon": "^0.7.85",
+    "socket.io-client": "^1.4.8",
+    "lodash": "^4.15.0"
+  },
+  "overrides": {
+    "socket.io-client": {
+      "main": [
+        "socket.io.js"
+      ]
     }
+  }
 }

@@ -19,7 +19,7 @@ export default function (server) {
 			data.timestamep = (new Date())
 				.getTime();
 			console.log('write:', data);
-			client.emit('update', data);
+			io.emit('update', data);
 		});
 	});
 }

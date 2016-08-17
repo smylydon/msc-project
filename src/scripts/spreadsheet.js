@@ -1,3 +1,59 @@
+/* eslint-disable */
+var _ = _;
+var Bacon = Bacon;
+/* eslint-enable */
+
+var Cell = function (cell) {
+	this.id = cell.id;
+	this.element = cell.element;
+	/* eslint-disable */
+	this.bus = new Bacon.Bus();
+	/* eslint-enable */
+};
+
+var SpreadSheetFactory = (function () {
+	function SpreadSheet(cells) {
+		this.cells = [];
+		this.addCells(cells);
+	}
+
+	SpreadSheet.prototype.addCells = function (cells) {
+		cells = _.isArray(cells) ? cells : [];
+		cells = cells.map(function (cell) {
+			return new Cell(cell);
+		});
+		Array.prototype.push.apply(this.cells, cells);
+	};
+
+	SpreadSheet.prototype.addCell = function (cell) {
+		this.cells.push(new Cell(cell));
+	};
+
+	SpreadSheet.prototype.removeCellsById = function (ids) {
+		ids = _.isArray(ids) ? ids : [];
+		_.forEach(ids, function (id) {
+			_.remove(this.cells, function (cell) {
+				return cell.id === id;
+			});
+		});
+	};
+
+	SpreadSheet.prototype.removeCellById = function (id) {
+		_.remove(this.cells, function (cell) {
+			return cell.id === id;
+		});
+	};
+
+	return {
+		getSpreadSheet: function (cells) {
+			return new SpreadSheet(cells);
+		}
+	};
+
+})();
+
+var spreadSheet = SpreadSheetFactory.getSpreadSheet();
+
 for (var i = 0; i < 6; i++) {
 	var row = document.querySelector("table")
 		.insertRow(-1);
@@ -10,12 +66,15 @@ for (var i = 0; i < 6; i++) {
 }
 
 var DATA = {};
-//var INPUTS = [].slice.call(document.querySelectorAll("input"));
-var INPUTS = $('input'); //get all inputs
 
+var INPUTS = $('input'); //get all inputs
+var cells = [];
 INPUTS.each(function (index, elem) {
 	var element = $(elem);
-
+	cells.push({
+		element: element,
+		id: element.attr('id')
+	});
 	element.asEventStream('focus')
 		.onValue(function (event) {
 			event.target.value = localStorage[event.target.id] || "";
@@ -26,12 +85,12 @@ INPUTS.each(function (index, elem) {
 			var elementid = event.target.id;
 			var value = event.target.value;
 			localStorage[elementid] = value;
+			//window.computeAll();
 			socket.emit('write', {
 				element: elementid,
 				value: value,
 				user_id: userId
 			});
-			window.computeAll();
 		});
 
 	function calculate(token) {
@@ -54,18 +113,18 @@ INPUTS.each(function (index, elem) {
 			}
 		} else if (token.type === 'operator') {
 			switch (token.token) {
-			case '+':
-			case '-':
-				left = calculate(token.left);
-				right = token.right ? calculate(token.right) : 0;
-				value = token.token === '+' ? (left + right) : (left - right);
-				break;
-			case '*':
-			case '/':
-				left = calculate(token.left);
-				right = token.right ? calculate(token.right) : 1;
-				value = token.token === '*' ? (left * right) : (left / right);
-				break;
+				case '+':
+				case '-':
+					left = calculate(token.left);
+					right = token.right ? calculate(token.right) : 0;
+					value = token.token === '+' ? (left + right) : (left - right);
+					break;
+				case '*':
+				case '/':
+					left = calculate(token.left);
+					right = token.right ? calculate(token.right) : 1;
+					value = token.token === '*' ? (left * right) : (left / right);
+					break;
 			}
 		}
 		return value;
@@ -94,7 +153,7 @@ INPUTS.each(function (index, elem) {
 		});
 
 });
-
+/*
 window.computeAll = (function () {
 	return function () {
 		INPUTS.each(function (index, elem) {
@@ -107,7 +166,7 @@ window.computeAll = (function () {
 			}
 		});
 	};
-})();
+})();*/
 
 var userId;
 /* eslint-disable */
@@ -129,3 +188,5 @@ socket.on('update', function (data) {
 socket.on('messages', function (data) {
 	console.log('messages:', data);
 });
+
+spreadSheet.addCells(cells);

@@ -62,9 +62,9 @@ const PATHS = {
 		dest: path.join(DEST, 'app/helpers')
 	},
 	sockets: {
-			src: path.join(SRC, 'app/sockets/**/*.js'),
-			dest: path.join(DEST, 'app/sockets')
-		}
+		src: path.join(SRC, 'app/sockets/**/*.js'),
+		dest: path.join(DEST, 'app/sockets')
+	}
 };
 
 // commonly used sets pertaining to tasks
