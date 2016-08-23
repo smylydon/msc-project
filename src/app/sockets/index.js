@@ -16,6 +16,7 @@ export default function (server) {
 		});
 
 		client.on('write', function (data) {
+			data.type = "update";
 			data.timestamep = (new Date())
 				.getTime();
 			console.log('write:', data);
