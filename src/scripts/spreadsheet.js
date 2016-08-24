@@ -16,6 +16,10 @@ var SpreadSheetFactory = (function () {
     this.addCells(cells);
   }
 
+  SpreadSheet.prototype.getCellById = function (id) {
+      return _.find(this.cells, { id: id});
+  };
+
   SpreadSheet.prototype.addCells = function (cells) {
     cells = _.isArray(cells) ? cells : [];
     cells = cells.map(function (cell) {
@@ -64,7 +68,7 @@ for (var i = 0; i < 6; i++) {
   }
 }
 
-var DATA = {};
+//var DATA = {};
 
 var INPUTS = $('input'); //get all inputs
 var cells = [];
@@ -79,26 +83,36 @@ function processElements(socketUpdate, socketMessage) {
 
     cells.push(model);
 
+    function updateCell(cell,velement, value) {
+      cell.value = value;
+      cell.formula = value;
+      element.val(cell.value);
+      localStorage[cell.id] = cell.formula;
+      cell.bus.push({ value: cell.value});
+    }
+
     socketUpdate.filter(function (data) {
       return data.element === model.id;
     }).onValue(function (data) {
+      var cell = spreadSheet.getCellById(data.element);
       var value = data.formula;
-      console.log('socketUpdate:', data);
 
       if (value.charAt(0) === "=") {
-        model.formula = value;
-        model.value = window.parser(value.substring(1));
-        //total = calculate(value);
+        cell.formula = value;
+        value = window.parser(value.substring(1));
+        var total = calculate(value);
+
+        total.onValue(function (x) {
+          updateCell(cell, element, x);
+        });
+
         //DATA
         //return total;
       } else {
         value = isNaN(parseFloat(value)) ? value : parseFloat(value);
-        model.value = value;
-        model.formula = value;
+        updateCell(cell, element, value);
       }
-      element.val(model.value);
-      localStorage[model.id] = model.formula;
-      console.log('cell is:', model);
+
     });
 
     element.asEventStream('focus')
@@ -106,7 +120,6 @@ function processElements(socketUpdate, socketMessage) {
         var elementid = event.target.id;
         var value = localStorage[elementid] || "";
         element.val(value);
-        console.log('focusStream');
       });
 
     element.asEventStream('blur')
@@ -124,18 +137,60 @@ function processElements(socketUpdate, socketMessage) {
         socket.emit('write', data);
       });
 
+    function add(a,b) {
+      return a+b;
+    }
+
+    function minus(a,b) {
+      return a-b;
+    }
+
+    function multiply(a,b) {
+      return a*b;
+    }
+
+    function divide(a,b) {
+      if (b === 0) {
+        return 0;
+      }
+      return a/b;
+    }
+
+    function makeProperty(num, min) {
+      min = min || 0;
+      return Bacon.fromBinder(function (sink) {
+        sink(num);
+      }).toProperty(min);
+    }
+
+    function fetchAndCombine(token, combiner) {
+      var right = '';
+      var left = calculate(token.left);
+      if (token.right) {
+        right = calculate(token.right);
+      } else {
+        right = makeProperty(0);
+      }
+      return left.combine(right, combiner);
+    }
+
     function calculate(token) {
       var left = 0;
       var right = 0;
       var value = 0;
 
       if (token.type === 'number') {
-        value = parseFloat(token.token);
+        value = makeProperty(parseFloat(token.token));
       } else if (token.type === 'cellname') {
-        value = DATA[token.token];
+        value = spreadSheet.getCellById(token.token);
       } else if (token.type === 'unary') {
         right = calculate(token.right);
-        value = token.token === '+' ? right : 0 - right;
+        if (token.token === '+') {
+          value  = right;
+        } else {
+          left = makeProperty(0);
+          value = left.combine(right, minus);
+        }
       } else if (token.type === "leftparen") {
         left = calculate(token.left);
         right = token.right;
@@ -143,18 +198,19 @@ function processElements(socketUpdate, socketMessage) {
           value = left;
         }
       } else if (token.type === 'operator') {
+
         switch (token.token) {
           case '+':
+              value = fetchAndCombine(token, add);
+            break;
           case '-':
-            left = calculate(token.left);
-            right = token.right ? calculate(token.right) : 0;
-            value = token.token === '+' ? (left + right) : (left - right);
+              value = fetchAndCombine(token, minus);
             break;
           case '*':
+              value = fetchAndCombine(token, multiply);
+            break;
           case '/':
-            left = calculate(token.left);
-            right = token.right ? calculate(token.right) : 1;
-            value = token.token === '*' ? (left * right) : (left / right);
+              value = fetchAndCombine(token, divide);
             break;
         }
       }
@@ -176,6 +232,8 @@ function processElements(socketUpdate, socketMessage) {
     /* eslint-enable */
 
   });
+
+  spreadSheet.addCells(cells);
 }
 
 var userId;
@@ -184,25 +242,24 @@ var socket = io.connect('http://localhost:5000');
 /* eslint-enable */
 
 socket.on('connect', function (data) {
+  console.log('connect');
   socket.emit('join', 'Hello World from client');
 
   socket.on('userid', function (data) {
     userId = data;
-
-    var socketUpdate = Bacon.fromBinder(function (sink) {
-      socket.on('update', function (data) {
-        sink(data);
-      });
-    });
-
-    var socketMessage = Bacon.fromBinder(function (sink) {
-      socket.on('messages', function (data) {
-        sink(data);
-      });
-    });
-
-    spreadSheet.addCells(cells);
-
-    processElements(socketUpdate, socketMessage);
   });
+
+  var socketUpdate = Bacon.fromBinder(function (sink) {
+    socket.on('update', function (data) {
+      sink(data);
+    });
+  });
+
+  var socketMessage = Bacon.fromBinder(function (sink) {
+    socket.on('messages', function (data) {
+      sink(data);
+    });
+  });
+
+  processElements(socketUpdate, socketMessage);
 });
