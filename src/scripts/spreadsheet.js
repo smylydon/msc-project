@@ -12,7 +12,6 @@ var CellFactory = (function () {
   }
 
   Cell.prototype.pusher = function () {
-    console.log('pushing:', this.id, this.value);
     this.bus.push(this.value);
   };
   return {
@@ -100,6 +99,7 @@ function processElements(socketUpdate, socketMessage) {
       element: element,
       id: element.attr('id')
     };
+    var pushers = [];
 
     cells.push(model);
 
@@ -115,21 +115,22 @@ function processElements(socketUpdate, socketMessage) {
     }).onValue(function (data) {
       var cell = spreadSheet.getCellById(data.element);
       var value = data.formula.toUpperCase();
+      pushers = [];
       cell.formula = value;
-
-      if (value.charAt(0) === "=") {
-        value = window.parser(value.substring(1));
-        var total = calculate(value);
-        console.log('do onValue');
-        total.onValue(function (x) {
-          console.log('do updateCell:', cell.id, x);
+      if (_.isUndefined(value) || value === '') {
+        updateCell(cell, element, 0);
+      } else {
+        if (value.charAt(0) === "=") {
+          value = value.substring(1);
+        }
+        value = window.parser(value);
+        calculate(value).onValue(function (x) {
           updateCell(cell, element, x);
         });
-      } else {
-        value = isNaN(parseFloat(value)) ? value : parseFloat(value);
-        updateCell(cell, element, value);
+        pushers.forEach(function (cell) {
+          cell.pusher();
+        });
       }
-
     });
 
     element.asEventStream('focus')
@@ -195,7 +196,7 @@ function processElements(socketUpdate, socketMessage) {
       } else if (token.type === 'cellname') {
         cell = spreadSheet.getCellById(token.token);
         value = cell.bus;
-        cell.pusher();
+        pushers.push(cell);
         console.log('got cell:', value);
       } else if (token.type === 'unary') {
         right = calculate(token.right);
@@ -256,7 +257,6 @@ var socket = io.connect('http://localhost:5000');
 /* eslint-enable */
 
 socket.on('connect', function (data) {
-  console.log('connect');
   socket.emit('join', 'Hello World from client');
 
   socket.on('userid', function (data) {
