@@ -6,14 +6,18 @@ var Bacon = Bacon;
 var Cell = function (cell) {
   this.id = cell.id;
   this.element = cell.element;
-  this.value = 55;
-  var that = this;
-  this.bus = new Bacon.fromBinder(function (sink) {
-    //that.pusher = function () {
-    sink(that.value);
-    //};
-    //console.log('fromBinder');
+  this.value = 0;
+  this.bus = new Bacon.Bus();
+
+  this.pusher = () => {
+    console.log('pushing:', this.value);
+    this.bus.push(this.value);
+  };
+
+  this.bus.onValue(function (value) {
+    console.log('value:', value);
   });
+  this.pusher();
 };
 
 var SpreadSheetFactory = (function () {
@@ -95,25 +99,23 @@ function processElements(socketUpdate, socketMessage) {
       cell.value = value;
       element.val(cell.value);
       localStorage[cell.id] = cell.formula;
+      cell.pusher();
     }
 
     socketUpdate.filter(function (data) {
       return data.element === model.id;
     }).onValue(function (data) {
       var cell = spreadSheet.getCellById(data.element);
-      var value = data.formula;
+      var value = data.formula.toUpperCase();
       cell.formula = value;
-      console.log(' cell is:', value);
+
       if (value.charAt(0) === "=") {
         value = window.parser(value.substring(1));
         var total = calculate(value);
-        console.log('made it');
         total.onValue(function (x) {
+          console.log('go update cell:', x);
           updateCell(cell, element, x);
         });
-
-        //DATA
-        //return total;
       } else {
         value = isNaN(parseFloat(value)) ? value : parseFloat(value);
         updateCell(cell, element, value);
@@ -161,13 +163,13 @@ function processElements(socketUpdate, socketMessage) {
       }
       return a / b;
     }
-
-    function makeProperty(num, min) {
-      min = min || 0;
-      return new Bacon.fromBinder(function (sink) {
-        sink(num);
-      }).toProperty(min);
-    }
+    /*
+        function makeProperty(num, min) {
+          min = min || 0;
+          return new Bacon.fromBinder(function (sink) {
+            sink(num);
+          }).toProperty(min);
+        }*/
 
     function fetchAndCombine(token, combiner) {
       var right = '';
@@ -175,7 +177,7 @@ function processElements(socketUpdate, socketMessage) {
       if (token.right) {
         right = calculate(token.right);
       } else {
-        right = makeProperty(0);
+        right = Bacon.constant(0);
       }
       return left.combine(right, combiner);
     }
@@ -184,19 +186,21 @@ function processElements(socketUpdate, socketMessage) {
       var left = 0;
       var right = 0;
       var value = 0;
-
+      var cell = 0;
       console.log('calculate:', token.type);
       if (token.type === 'number') {
-        value = makeProperty(parseFloat(token.token));
+        value = Bacon.constant(parseFloat(token.token));
       } else if (token.type === 'cellname') {
-        value = spreadSheet.getCellById(token.token).bus;
+        cell = spreadSheet.getCellById(token.token);
+        value = cell.bus;
+        cell.pusher();
         console.log('got cell:', value);
       } else if (token.type === 'unary') {
         right = calculate(token.right);
         if (token.token === '+') {
           value = right;
         } else {
-          left = makeProperty(0);
+          left = Bacon.constant(0);
           value = left.combine(right, minus);
         }
       } else if (token.type === "leftparen") {
