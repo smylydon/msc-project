@@ -3,22 +3,24 @@ var _ = _;
 var Bacon = Bacon;
 /* eslint-enable */
 
-var Cell = function (cell) {
-  this.id = cell.id;
-  this.element = cell.element;
-  this.value = 0;
-  this.bus = new Bacon.Bus();
+var CellFactory = (function () {
+  function Cell(data) {
+    this.id = data.id;
+    this.element = data.element;
+    this.value = 0;
+    this.bus = new Bacon.Bus();
+  }
 
-  this.pusher = () => {
-    console.log('pushing:', this.value);
+  Cell.prototype.pusher = function () {
+    console.log('pushing:', this.id, this.value);
     this.bus.push(this.value);
   };
-
-  this.bus.onValue(function (value) {
-    console.log('value:', value);
-  });
-  this.pusher();
-};
+  return {
+    getNewCell: function (data) {
+      return new Cell(data);
+    }
+  };
+})();
 
 var SpreadSheetFactory = (function () {
   function SpreadSheet(cells) {
@@ -34,14 +36,14 @@ var SpreadSheetFactory = (function () {
 
   SpreadSheet.prototype.addCells = function (cells) {
     cells = _.isArray(cells) ? cells : [];
-    cells = cells.map(function (cell) {
-      return new Cell(cell);
+    cells = cells.map(function (data) {
+      return CellFactory.getNewCell(data);
     });
     Array.prototype.push.apply(this.cells, cells);
   };
 
-  SpreadSheet.prototype.addCell = function (cell) {
-    this.cells.push(new Cell(cell));
+  SpreadSheet.prototype.addCell = function (data) {
+    this.cells.push(CellFactory.getNewCell(data));
   };
 
   SpreadSheet.prototype.removeCellsById = function (ids) {
@@ -69,18 +71,24 @@ var SpreadSheetFactory = (function () {
 
 var spreadSheet = SpreadSheetFactory.getSpreadSheet();
 
-for (var i = 0; i < 6; i++) {
-  var row = document.querySelector("table")
-    .insertRow(-1);
-  for (var j = 0; j < 6; j++) {
-    var letter = String.fromCharCode("A".charCodeAt(0) + j - 1);
-    row.insertCell(-1)
-      .innerHTML = i && j ? "<input id='" + letter + i + "'/>" :
-      i || letter;
+function drawSpreadSheet(width, height) {
+  width = width || 1;
+  height = height || 1;
+
+  var table = document.querySelector("table");
+
+  for (var i = 0; i < height; i++) {
+    var row = table.insertRow(-1);
+    for (var j = 0; j < width; j++) {
+      var letter = String.fromCharCode("A".charCodeAt(0) + j - 1);
+      row.insertCell(-1)
+        .innerHTML = i && j ? "<input id='" + letter + i + "'/>" :
+        i || letter;
+    }
   }
 }
 
-//var DATA = {};
+drawSpreadSheet(10, 10);
 
 var INPUTS = $('input'); //get all inputs
 var cells = [];
@@ -112,8 +120,9 @@ function processElements(socketUpdate, socketMessage) {
       if (value.charAt(0) === "=") {
         value = window.parser(value.substring(1));
         var total = calculate(value);
+        console.log('do onValue');
         total.onValue(function (x) {
-          console.log('go update cell:', x);
+          console.log('do updateCell:', cell.id, x);
           updateCell(cell, element, x);
         });
       } else {
@@ -135,7 +144,7 @@ function processElements(socketUpdate, socketMessage) {
         var elementid = event.target.id;
         var formula = event.target.value;
         localStorage[elementid] = formula;
-        console.log('blurStream');
+
         return {
           element: elementid,
           formula: formula,
@@ -163,13 +172,6 @@ function processElements(socketUpdate, socketMessage) {
       }
       return a / b;
     }
-    /*
-        function makeProperty(num, min) {
-          min = min || 0;
-          return new Bacon.fromBinder(function (sink) {
-            sink(num);
-          }).toProperty(min);
-        }*/
 
     function fetchAndCombine(token, combiner) {
       var right = '';
