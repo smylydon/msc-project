@@ -3,6 +3,14 @@ var _ = _;
 var Bacon = Bacon;
 /* eslint-enable */
 
+/* eslint-disable */
+var _ = _;
+var Bacon = Bacon;
+/* eslint-enable */
+
+/*
+ * CellFactory
+ */
 var CellFactory = (function () {
   function Cell(data) {
     this.id = data.id;
@@ -21,18 +29,45 @@ var CellFactory = (function () {
   };
 })();
 
+/*
+ * SpreadSheetFactory
+ */
 var SpreadSheetFactory = (function () {
+  /*
+   * Constructor
+   *
+   * param {Array}
+   */
   function SpreadSheet(cells) {
     this.cells = [];
     this.addCells(cells);
   }
 
+  /*
+   * getCellById
+   *
+   * Returns the the first cell taht match the id
+   * or returns undefined.
+   *
+   * param {string} id of cell
+   * return {Cell}
+   */
   SpreadSheet.prototype.getCellById = function (id) {
     return _.find(this.cells, {
       id: id
     });
   };
 
+  /*
+   * addCells
+   *
+   * Accepts an array of json objects. A collection of
+   * Cell of objects are create using the json objects.
+   * The cells are added to collection of spreatsheet
+   * cells.
+   *
+   * param {Array} an array of json objects
+   */
   SpreadSheet.prototype.addCells = function (cells) {
     cells = _.isArray(cells) ? cells : [];
     cells = cells.map(function (data) {
@@ -45,6 +80,15 @@ var SpreadSheetFactory = (function () {
     this.cells.push(CellFactory.getNewCell(data));
   };
 
+  /*
+   * removeCellsById
+   *
+   * Accepts a list of cell ids. Cells matching each
+   * are removed one at a time from the collection
+   * of spreatsheet cells.
+   *
+   * param {Array} a list of ids to remove
+   */
   SpreadSheet.prototype.removeCellsById = function (ids) {
     ids = _.isArray(ids) ? ids : [];
     _.forEach(ids, function (id) {
@@ -70,9 +114,25 @@ var SpreadSheetFactory = (function () {
 
 var spreadSheet = SpreadSheetFactory.getSpreadSheet();
 
+function contrainValue(value, min, max) {
+  min = min || 0;
+  max = max || 10;
+  value = _.isFinite(value) ? value : 1;
+  value = Math.max(min, value);
+  value = Math.min(max, value);
+  return value;
+}
+
+/*
+ * drawSpreadSheet
+ *
+ * param {int} width
+ * param {int} height
+ * return void
+ */
 function drawSpreadSheet(width, height) {
-  width = width || 1;
-  height = height || 1;
+  width = contrainValue(width, 1, 27);
+  height = contrainValue(height, 1, 20);
 
   var table = document.querySelector("table");
 
@@ -81,7 +141,8 @@ function drawSpreadSheet(width, height) {
     for (var j = 0; j < width; j++) {
       var letter = String.fromCharCode("A".charCodeAt(0) + j - 1);
       row.insertCell(-1)
-        .innerHTML = i && j ? "<input id='" + letter + i + "'/>" :
+        .innerHTML = i && j ? "<input id='" + letter + i +
+        "' class='spreadsheet-cell' />" :
         i || letter;
     }
   }
@@ -89,10 +150,93 @@ function drawSpreadSheet(width, height) {
 
 drawSpreadSheet(10, 10);
 
-var INPUTS = $('input'); //get all inputs
+var INPUTS = $('.spreadsheet-cell'); //get all inputs
 var cells = [];
 
 function processElements(socketUpdate, socketMessage) {
+  function add(a, b) {
+    return a + b;
+  }
+
+  function minus(a, b) {
+    return a - b;
+  }
+
+  function multiply(a, b) {
+    return a * b;
+  }
+
+  function divide(a, b) {
+    if (b === 0) {
+      return 0;
+    }
+    return a / b;
+  }
+
+  function fetchAndCombine(token, combiner, pushers) {
+    var right = '';
+    var left = calculate(token.left, pushers);
+
+    if (token.right) {
+      right = calculate(token.right, pushers);
+    } else {
+      right = Bacon.constant(0);
+    }
+    return left.combine(right, combiner);
+  }
+
+  function calculate(token, pushers) {
+    var left = 0;
+    var right = 0;
+    var value = 0;
+
+    if (token.type === 'number') {
+      value = Bacon.constant(parseFloat(token.token));
+    } else if (token.type === 'cellname') {
+      value = spreadSheet.getCellById(token.token);
+      pushers.push(value);
+      value = value.bus;
+    } else if (token.type === 'unary') {
+      right = calculate(token.right, pushers);
+      if (token.token === '+') {
+        value = right;
+      } else {
+        left = Bacon.constant(0);
+        value = left.combine(right, minus);
+      }
+    } else if (token.type === "leftparen") {
+      left = calculate(token.left, pushers);
+      right = token.right;
+      if (right.type === 'rightparen') {
+        value = left;
+      }
+    } else if (token.type === 'operator') {
+
+      switch (token.token) {
+        case '+':
+          value = fetchAndCombine(token, add, pushers);
+          break;
+        case '-':
+          value = fetchAndCombine(token, minus, pushers);
+          break;
+        case '*':
+          value = fetchAndCombine(token, multiply, pushers);
+          break;
+        case '/':
+          value = fetchAndCombine(token, divide, pushers);
+          break;
+      }
+    }
+    return value;
+  }
+
+  function updateCell(cell, element, value) {
+    cell.value = value;
+    element.val(cell.value);
+    //localStorage[cell.id] = cell.formula;
+    cell.pusher();
+  }
+
   INPUTS.each(function (index, elem) {
     var element = $(elem);
     var model = {
@@ -103,20 +247,15 @@ function processElements(socketUpdate, socketMessage) {
 
     cells.push(model);
 
-    function updateCell(cell, element, value) {
-      cell.value = value;
-      element.val(cell.value);
-      localStorage[cell.id] = cell.formula;
-      cell.pusher();
-    }
-
     socketUpdate.filter(function (data) {
       return data.element === model.id;
     }).onValue(function (data) {
       var cell = spreadSheet.getCellById(data.element);
       var value = data.formula.toUpperCase();
+      var test = true;
       pushers = [];
       cell.formula = value;
+      //      console.log(':', cell.formula, cell.value);
       if (_.isUndefined(value) || value === '') {
         updateCell(cell, element, 0);
       } else {
@@ -124,8 +263,10 @@ function processElements(socketUpdate, socketMessage) {
           value = value.substring(1);
         }
         value = window.parser(value);
-        calculate(value).onValue(function (x) {
+        calculate(value, pushers).onValue(function (x) {
+          console.log(':', cell.id, cell.formula, cell.value, test);
           updateCell(cell, element, x);
+          test = false;
         });
         pushers.forEach(function (cell) {
           cell.pusher();
@@ -136,7 +277,9 @@ function processElements(socketUpdate, socketMessage) {
     element.asEventStream('focus')
       .onValue(function (event) {
         var elementid = event.target.id;
-        var value = localStorage[elementid] || "";
+        var cell = spreadSheet.getCellById(elementid);
+        var value = cell.formula; // || localStorage[elementid] || "";
+        console.log('cell:', cell);
         element.val(value);
       });
 
@@ -144,7 +287,7 @@ function processElements(socketUpdate, socketMessage) {
       .map(function (event) {
         var elementid = event.target.id;
         var formula = event.target.value;
-        localStorage[elementid] = formula;
+        //localStorage[elementid] = formula;
 
         return {
           element: elementid,
@@ -154,98 +297,6 @@ function processElements(socketUpdate, socketMessage) {
       }).onValue(function (data) {
         socket.emit('write', data);
       });
-
-    function add(a, b) {
-      return a + b;
-    }
-
-    function minus(a, b) {
-      return a - b;
-    }
-
-    function multiply(a, b) {
-      return a * b;
-    }
-
-    function divide(a, b) {
-      if (b === 0) {
-        return 0;
-      }
-      return a / b;
-    }
-
-    function fetchAndCombine(token, combiner) {
-      var right = '';
-      var left = calculate(token.left);
-      if (token.right) {
-        right = calculate(token.right);
-      } else {
-        right = Bacon.constant(0);
-      }
-      return left.combine(right, combiner);
-    }
-
-    function calculate(token) {
-      var left = 0;
-      var right = 0;
-      var value = 0;
-      var cell = 0;
-      console.log('calculate:', token.type);
-      if (token.type === 'number') {
-        value = Bacon.constant(parseFloat(token.token));
-      } else if (token.type === 'cellname') {
-        cell = spreadSheet.getCellById(token.token);
-        value = cell.bus;
-        pushers.push(cell);
-        console.log('got cell:', value);
-      } else if (token.type === 'unary') {
-        right = calculate(token.right);
-        if (token.token === '+') {
-          value = right;
-        } else {
-          left = Bacon.constant(0);
-          value = left.combine(right, minus);
-        }
-      } else if (token.type === "leftparen") {
-        left = calculate(token.left);
-        right = token.right;
-        if (right.type === 'rightparen') {
-          value = left;
-        }
-      } else if (token.type === 'operator') {
-
-        switch (token.token) {
-          case '+':
-            value = fetchAndCombine(token, add);
-            break;
-          case '-':
-            value = fetchAndCombine(token, minus);
-            break;
-          case '*':
-            value = fetchAndCombine(token, multiply);
-            break;
-          case '/':
-            value = fetchAndCombine(token, divide);
-            break;
-        }
-      }
-      return value;
-    }
-    /* eslint-disable */
-    function getter() {
-      var value = localStorage[element.attr('id')] || "";
-      var total = 0;
-      if (value.charAt(0) === "=") {
-        value = window.parser(value.substring(1));
-        total = calculate(value);
-        //DATA
-        return total;
-      } else {
-        return isNaN(parseFloat(value)) ? value : parseFloat(value);
-      }
-    }
-    /* eslint-enable */
-
   });
 
   spreadSheet.addCells(cells);

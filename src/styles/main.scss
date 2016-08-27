@@ -35,35 +35,37 @@ li:before {
     content: "✓ ";
 }
 
-input {
+.spreadsheet-cell {
     border: none;
     width: 80px;
     font-size: 14px;
     padding: 2px;
+    &:hover {
+        background-color: #eee;
+    }
+
+    &:focus {
+        background-color: #ccf;
+    }
+
+    &:not(:focus) {
+        text-align: right;
+    }
 }
 
-input:hover {
-    background-color: #eee;
-}
 
-input:focus {
-    background-color: #ccf;
-}
 
-input:not(:focus) {
-    text-align: right;
-}
-
-table {
+.spreadsheet {
     border-collapse: collapse;
+    padding-right: 1em;
 }
 
-td {
+.spreadsheet td {
     border: 1px solid #999;
     padding: 0;
 }
 
-tr:first-child td, td:first-child {
+.spreadsheet tr:first-child td, .spreadsheet td:first-child {
     background-color: #ccc;
     padding: 1px 3px;
     font-weight: bold;
