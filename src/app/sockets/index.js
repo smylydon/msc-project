@@ -14,12 +14,6 @@ export default function (server) {
 		console.log('connected to redis');
 	});
 
-	redisClient.set('test', 'test');
-
-	redisClient.get('test', function (error, value) {
-		console.log('test:', error, value);
-	});
-
 	// set basic routes
 	var connections = Bacon.fromBinder(function (sink) {
 		io.on('connect', sink);
@@ -31,7 +25,7 @@ export default function (server) {
 				var timestamep = (new Date())
 					.getTime();
 				client.emit('userid', timestamep);
-				sink({type: 'join', data: data});
+				sink({type: 'join', data: timestamep});
 			});
 			client.on('write', function(data) {
 				data.type = "update";
@@ -41,10 +35,6 @@ export default function (server) {
 				sink({type: 'write', data: data});
 			});
 		});
-	});
-
-	messages.onValue(function (data) {
-		//console.log(data);
 	});
 
 	function tag(label) {
@@ -58,11 +48,10 @@ export default function (server) {
 		messages.map(tag('message'))
 	).onValues(function (label, value) {
 		if (label === 'connect') {
-			console.log('merging:', label, value.id);
 			redisClient.set(label, value.id);
 		} else {
-			console.log('mergeing:', label, value);
-			redisClient.set(label, value);
+			redisClient.set(label, JSON.stringify(value));
+			console.log(redisClient.get(label));
 		}
 	});
 }

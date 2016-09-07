@@ -71,7 +71,27 @@ li:before {
     font-weight: bold;
     text-align: center;
 }
+.container {
+  width: 100%;
+}
 
+.clearfix:after {
+  content: " ";
+  display: table;
+  clear: both;
+}
+.aside {
+  float: left;
+  width: 21%;
+  padding: 1%;
+  margin: 0;
+}
+.section {
+  float: left;
+  width: 74%;
+  padding:1%;
+  margin: 0;
+}
 footer {
     font-size: 80%;
 }
