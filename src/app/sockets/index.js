@@ -3,6 +3,7 @@
 import socket from 'socket.io';
 import redis from 'redis';
 import bacon from 'baconjs';
+import logger from './app/helpers/logger';
 
 // export sockets
 export default function (server) {
@@ -25,14 +26,20 @@ export default function (server) {
 				var timestamep = (new Date())
 					.getTime();
 				client.emit('userid', timestamep);
-				sink({type: 'join', data: timestamep});
+				sink({
+					type: 'join',
+					data: timestamep
+				});
 			});
-			client.on('write', function(data) {
+			client.on('write', function (data) {
 				data.type = "update";
 				data.timestamep = (new Date())
 					.getTime();
 				io.emit('update', data);
-				sink({type: 'write', data: data});
+				sink({
+					type: 'write',
+					data: data
+				});
 			});
 		});
 	});
@@ -51,7 +58,7 @@ export default function (server) {
 			redisClient.set(label, value.id);
 		} else {
 			redisClient.set(label, JSON.stringify(value));
-			console.log(redisClient.get(label));
+			logger.info(redisClient.get(label));
 		}
 	});
 }
