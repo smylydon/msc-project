@@ -3,7 +3,7 @@
 import socket from 'socket.io';
 import redis from 'redis';
 import bacon from 'baconjs';
-import logger from './app/helpers/logger';
+import logger from '../helpers/logger';
 
 // export sockets
 export default function (server) {
@@ -12,7 +12,7 @@ export default function (server) {
 	const redisClient = redis.createClient();
 
 	redisClient.on('connect', function (error, value) {
-		console.log('connected to redis');
+		logger.info('connected to redis');
 	});
 
 	// set basic routes
@@ -50,15 +50,38 @@ export default function (server) {
 		};
 	}
 
-	Bacon.mergeAll(
-		connections.map(tag('connect')),
-		messages.map(tag('message'))
-	).onValues(function (label, value) {
-		if (label === 'connect') {
-			redisClient.set(label, value.id);
-		} else {
-			redisClient.set(label, JSON.stringify(value));
-			logger.info(redisClient.get(label));
+	function logMessages(value) {
+		var label = 'message';
+		var type = value.type;
+
+		switch (type) {
+		case 'join':
+			label = type + value.data;
+			break;
+		case 'update':
+		case 'write':
+			label = 'update' + value.data.user_id + '_' + value.data.element;
+			break;
 		}
-	});
+		return label;
+	}
+
+	Bacon.mergeAll(
+			connections.map(function (value) {
+				return tag('connect' + value.id);
+			}),
+			messages.map(tag('message'))
+		)
+		.onValues(function (label, value) {
+			if (label) {
+				if (/connect/i.test(label)) {
+					redisClient.set(label, label.replace('connect',''));
+					redisClient.expire(label, 86400);
+				} else if (label === 'message') {
+					label = logMessages(value);
+					redisClient.set(label, JSON.stringify(value));
+					redisClient.expire(label, 3600);
+				}
+			}
+		});
 }
