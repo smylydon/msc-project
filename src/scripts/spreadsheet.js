@@ -3,15 +3,15 @@ var _ = _;
 var Bacon = Bacon;
 /* eslint-enable */
 
-/* eslint-disable */
-var _ = _;
-var Bacon = Bacon;
-/* eslint-enable */
-
 /*
  * CellFactory
  */
 var CellFactory = (function () {
+  /*
+   * Constructor
+   *
+   * param {Object} json object containing cell data
+   */
   function Cell(data) {
     this.id = data.id;
     this.element = data.element;
@@ -19,9 +19,16 @@ var CellFactory = (function () {
     this.bus = new Bacon.Bus();
   }
 
+  /*
+   * pusher
+   *
+   * Pushes the current value to all subscribers.
+   *
+   */
   Cell.prototype.pusher = function () {
     this.bus.push(this.value);
   };
+
   return {
     getNewCell: function (data) {
       return new Cell(data);
@@ -36,7 +43,7 @@ var SpreadSheetFactory = (function () {
   /*
    * Constructor
    *
-   * param {Array}
+   * param {Array} optional array containing cell data.
    */
   function SpreadSheet(cells) {
     this.cells = [];
@@ -62,8 +69,8 @@ var SpreadSheetFactory = (function () {
    * addCells
    *
    * Accepts an array of json objects. A collection of
-   * Cell of objects are create using the json objects.
-   * The cells are added to collection of spreatsheet
+   * Cell objects are create using the json objects.
+   * The cells are added to collection of spreadsheet
    * cells.
    *
    * param {Array} an array of json objects
@@ -98,6 +105,15 @@ var SpreadSheetFactory = (function () {
     });
   };
 
+  /*
+   * removeCellById
+   *
+   * Accepts an id of a cell that needs to be removed.
+   * Cells that match the id are removed one at a time
+   * from the collection of spreatsheet cells.
+   *
+   * param {String} id the id of the cell to be removed
+   */
   SpreadSheet.prototype.removeCellById = function (id) {
     _.remove(this.cells, function (cell) {
       return cell.id === id;
