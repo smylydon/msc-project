@@ -1,6 +1,6 @@
 window.parser = (function () {
-	var functionRegex = /(sum|avg|mean)\(\s*[a-z]\d+\s*:\s*[a-z]\d+\s*\)/ig;
-	var cellRegex = /^[A-Z]\d+$/i;
+	var functionRegex = /(sum|avg|mean)\(\s*[a-z]([1-9]\d+|[1-9])\s*:\s*[a-z]([1-9]\d+|[1-9])\s*\)/ig;
+	var cellRegex = /^[A-Z]([1-9]\d+|[1-9])$/i;
 	var operatorRegex = /[+\-\/\*]/;
 	var numberRegex = /^\d+(\.\d+)?$/;
 	var position = 0;
@@ -8,8 +8,7 @@ window.parser = (function () {
 
 	function tokenize(value) {
 		var results = [];
-		var tokenRegEx =
-			/([A-Z]\d+|\d+(\.\d+)?|[+\-\/\*]|\(|\)|(sum|avg|mean)\(\s*[a-z]\d+\s*:\s*[a-z]\d+\s*\))/ig;
+		var tokenRegEx = /([A-Z]([1-9]\d+|[1-9])|\d+(\.\d+)?|[+\-\/\*]|\(|\))/ig;
 
 		var m;
 		while ((m = tokenRegEx.exec(value)) !== null) {
@@ -37,6 +36,10 @@ window.parser = (function () {
 		};
 	}
 
+	function nextChar(c) {
+		return String.fromCharCode(c.charCodeAt(0) + 1);
+	}
+
 	function cleanupSumMean(string, fname, counter) {
 		string = string.replace(/^\+/, '');
 		string = '(' + string + ')';
@@ -45,7 +48,7 @@ window.parser = (function () {
 		}
 		return string;
 	}
-	
+
 	/*
    * sumMean
    *
@@ -66,17 +69,16 @@ window.parser = (function () {
 		var string = '#ERROR';
 		var fname = /sum/i.test(value) ? 'sum': 'mean';
 
-		value = value.replace(/(sum|mean|[\(\)]+)/ig,'').replace(' ','');
+		value = value.replace(/(sum|avg|mean|[\(\)]+)/ig,'').replace(' ','');
 		cells = value.split(':');
 		startLetter = cells[0][0];
 		endLetter = cells[1][0];
+		startNum = parseInt(cells[0][1]);
+		endNum = parseInt(cells[1][1]);
 
 		if (startLetter === endLetter) {
-			startNum = parseInt(cells[0][1]);
-			endNum = parseInt(cells[1][1]);
 			if (endNum >= startNum) {
 				string = '';
-				counter = startNum;
 				while(startNum <= endNum) {
 					string += '+' + startLetter + startNum;
 					startNum++;
@@ -85,13 +87,11 @@ window.parser = (function () {
 				string = cleanupSumMean(string, fname, counter);
 			}
 		} else if (endLetter >= startLetter) {
-			startNum = cells[0][1];
-			endNum = cells[1][1];
 			if (endNum === startNum) {
 				string = '';
 				while(startLetter <= endLetter) {
 					string += '+' + startLetter + startNum;
-					startLetter++;
+					startLetter = nextChar(startLetter);
 					counter++;
 				}
 				string = cleanupSumMean(string, fname, counter);
@@ -174,7 +174,7 @@ window.parser = (function () {
 
 	function parse(value) {
 		position = 0;
-		value = value.replace(functionRegex, sumMean); //expand functions
+		value = value.replace(functionRegex, sumMean); //expand sum and mean functions
 		tokens = tokenize(value);
 		return parseAdditive();
 	}
