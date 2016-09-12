@@ -50,15 +50,15 @@ window.parser = (function () {
 	}
 
 	/*
-   * sumMean
-   *
-   * This function expands sum and mean into a longform
+	 * sumMean
+	 *
+	 * This function expands sum and mean into a longform
 	 * equivalent. Example:
 	 *
 	 * mean(a1:a5) => (a1+a2+a3+a4+a5)/5
-   *
-   * param {String} text rep of function
-   */
+	 *
+	 * param {String} text rep of function
+	 */
 	function sumMean(value) {
 		var startLetter = '';
 		var endLetter = '';
@@ -67,9 +67,10 @@ window.parser = (function () {
 		var cells;
 		var counter = 0;
 		var string = '#ERROR';
-		var fname = /sum/i.test(value) ? 'sum': 'mean';
+		var fname = /sum/i.test(value) ? 'sum' : 'mean';
 
-		value = value.replace(/(sum|avg|mean|[\(\)]+)/ig,'').replace(' ','');
+		value = value.replace(/(sum|avg|mean|[\(\)]+)/ig, '')
+			.replace(' ', '');
 		cells = value.split(':');
 		startLetter = cells[0][0];
 		endLetter = cells[1][0];
@@ -79,7 +80,7 @@ window.parser = (function () {
 		if (startLetter === endLetter) {
 			if (endNum >= startNum) {
 				string = '';
-				while(startNum <= endNum) {
+				while (startNum <= endNum) {
 					string += '+' + startLetter + startNum;
 					startNum++;
 					counter++;
@@ -89,7 +90,7 @@ window.parser = (function () {
 		} else if (endLetter >= startLetter) {
 			if (endNum === startNum) {
 				string = '';
-				while(startLetter <= endLetter) {
+				while (startLetter <= endLetter) {
 					string += '+' + startLetter + startNum;
 					startLetter = nextChar(startLetter);
 					counter++;
@@ -97,7 +98,7 @@ window.parser = (function () {
 				string = cleanupSumMean(string, fname, counter);
 			}
 		}
-		console.log('>>>',string);
+		console.log('>>>', string);
 		return string;
 	}
 
