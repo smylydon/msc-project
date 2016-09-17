@@ -16,6 +16,7 @@ var CellFactory = (function () {
 		this.id = data.id;
 		this.element = data.element;
 		this.value = 0;
+		this.expanded = '0';
 		this.bus = new Bacon.Bus();
 	}
 
@@ -254,6 +255,7 @@ function processElements(socketUpdate, socketMessage) {
 			element.val(cell.value);
 		}
 		localStorage[cell.id] = cell.formula;
+		console.log('cell:', cell.id, cell.value);
 		cell.pusher();
 	}
 
@@ -278,13 +280,17 @@ function processElements(socketUpdate, socketMessage) {
 
 				if (_.isUndefined(value) || value === '') {
 					updateCell(cell, element, 0);
+					cell.expanded = '0';
 				} else {
-					value = window.parser(value.replace('=', ''));
+					value = window.parser.parse(value.replace('=', ''));
 					calculate(value, pushers)
 						.onValue(function (result) {
 							updateCell(cell, element, result);
 						});
-					pushers.forEach(function (cell) {
+					pushers = _.uniqBy(pushers, function (cell) {
+						return cell.id;
+					});
+					_.forEach(pushers, function (cell) {
 						cell.pusher();
 					});
 				}
@@ -294,7 +300,7 @@ function processElements(socketUpdate, socketMessage) {
 			.onValue(function (event) {
 				var elementid = event.target.id;
 				var cell = spreadSheet.getCellById(elementid);
-				var value = cell.formula; 
+				var value = cell.formula;
 				element.val(value);
 			});
 
@@ -315,6 +321,7 @@ function processElements(socketUpdate, socketMessage) {
 	});
 
 	spreadSheet.addCells(cells);
+	window.parser.setSpreadSheet(spreadSheet);
 }
 
 var userId;

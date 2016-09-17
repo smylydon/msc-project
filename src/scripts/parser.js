@@ -1,6 +1,7 @@
 window.parser = (function () {
 	var functionRegex = /(sum|avg|mean)\(\s*[a-z]([1-9]\d+|[1-9])\s*:\s*[a-z]([1-9]\d+|[1-9])\s*\)/ig;
 	var cellRegex = /^[A-Z]([1-9]\d+|[1-9])$/i;
+	var cellRegex2 = /[A-Z]([1-9]\d+|[1-9])/ig;
 	var operatorRegex = /[+\-\/\*]/;
 	var numberRegex = /^\d+(\.\d+)?$/;
 	var position = 0;
@@ -18,8 +19,7 @@ window.parser = (function () {
 	}
 
 	function peek() {
-		var value = tokens[position];
-		return value;
+		return tokens[position];
 	}
 
 	function next() {
@@ -36,6 +36,65 @@ window.parser = (function () {
 		};
 	}
 
+	function parsePrimary() {
+		var result = {};
+		var value = peek();
+
+		if (operatorRegex.test(value)) {
+			result = createToken(value, 'unary');
+			result.right = parseAdditive();
+		} else if (numberRegex.test(value)) {
+			result = createToken(value, 'number');
+		} else if (/^\($/.test(value)) {
+			result = createToken(value, 'leftparen');
+			result.left = parseAdditive();
+			value = peek();
+			if (value === ')') {
+				result.right = createToken(value, 'rightparen');
+			}
+		} else if (cellRegex.test(value)) {
+			result = createToken(value, 'cellname');
+		} else {
+			result = createToken(value, '');
+		}
+
+		return result;
+	}
+
+	function parseMultiplicative() {
+		var expression = parsePrimary();
+		var token = peek();
+
+		while (token === '*' || token === '/') {
+			token = next();
+			expression = {
+				token: token,
+				type: 'operator',
+				left: expression,
+				right: parsePrimary()
+			};
+			token = peek();
+		}
+		return expression;
+	}
+
+	function parseAdditive() {
+		var expression = parseMultiplicative();
+		var token = peek();
+
+		while (token === '+' || token === '-') {
+			token = next();
+			expression = {
+				token: token,
+				type: 'operator',
+				left: expression,
+				right: parseMultiplicative()
+			};
+			token = peek();
+		}
+		return expression;
+	}
+
 	function nextChar(c) {
 		return String.fromCharCode(c.charCodeAt(0) + 1);
 	}
@@ -50,7 +109,7 @@ window.parser = (function () {
 	}
 
 	/*
-	 * sumMean
+	 * expandSumAndMean
 	 *
 	 * This function expands sum and mean into a longform
 	 * equivalent. Example:
@@ -59,7 +118,7 @@ window.parser = (function () {
 	 *
 	 * param {String} text rep of function
 	 */
-	function sumMean(value) {
+	function expandSumAndMean(value) {
 		var startLetter = '';
 		var endLetter = '';
 		var startNum = '';
@@ -102,83 +161,46 @@ window.parser = (function () {
 		return string;
 	}
 
-	function parsePrimary() {
-		var result = {};
-		var value = peek();
-		if (operatorRegex.test(value)) {
-			result = createToken(value, 'unary');
-			result.right = parseAdditive();
-		} else if (numberRegex.test(value)) {
-			result = createToken(value, 'number');
-		} else if (/^\($/.test(value)) {
-			result = createToken(value, 'leftparen');
-			result.left = parseAdditive();
-			value = peek();
-			if (value === ')') {
-				result.right = createToken(value, 'rightparen');
-			}
-		} else if (cellRegex.test(value)) {
-			result = createToken(value, 'cellname');
-		}
-		/*
-		else if (functionRegex.test(value)) {
-			var name = '';
-			if (/sum/ig.test(value)) {
-				name = 'sum';
-			} else if (/^(avg|mean)/ig.test(value)) {
-				name = "mean";
-			}
+	var spreadSheet;
 
-			sumMean(name,value);
-			result = createToken(value, name);
-		} */
-		else {
-			result = createToken(value, '');
-		}
-		//console.log('valuing:', value, result);
-		return result;
+	function setSpreadSheet(collection) {
+		spreadSheet = collection;
 	}
 
-	function parseMultiplicative() {
-		var expression = parsePrimary();
-		var token = peek();
-
-		while (token === '*' || token === '/') {
-			token = next();
-			expression = {
-				token: token,
-				type: 'operator',
-				left: expression,
-				right: parsePrimary()
-			};
-			token = peek();
+	/*
+	 * expandCells
+	 *
+	 * Recursively removes transitive relationships. If this is not done
+	 * it results in glitches.
+	 *
+	 * Example:
+	 * A1 = 1
+	 * B1 = A1+1
+	 * C1 = B1 + A1
+	 *   -> A1 + 1 + A1
+	 *
+	 * param {String} user input
+	 */
+	function expandCells(label) {
+		var cell = spreadSheet.getCellById(label);
+		var formula = cell.formula;
+		if (cellRegex2.test(formula)) {
+			label = formula.replace(cellRegex2, expandCells);
 		}
-		return expression;
-	}
-
-	function parseAdditive() {
-		var expression = parseMultiplicative();
-		var token = peek();
-
-		while (token === '+' || token === '-') {
-			token = next();
-			expression = {
-				token: token,
-				type: 'operator',
-				left: expression,
-				right: parseMultiplicative()
-			};
-			token = peek();
-		}
-		return expression;
+		return label;
 	}
 
 	function parse(value) {
+		value = value || '';
 		position = 0;
-		value = value.replace(functionRegex, sumMean); //expand sum and mean functions
+		value = value.replace(functionRegex, expandSumAndMean);
+		value = value.replace(cellRegex2, expandCells);
 		tokens = tokenize(value);
 		return parseAdditive();
 	}
 
-	return parse;
+	return {
+		parse: parse,
+		setSpreadSheet: setSpreadSheet
+	};
 })();
