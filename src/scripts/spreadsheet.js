@@ -17,6 +17,8 @@ var CellFactory = (function () {
 		this.element = data.element;
 		this.value = 0;
 		this.expanded = '0';
+		this.lastUpdated = 0;
+		this.dispose = null;
 		this.bus = new Bacon.Bus();
 	}
 
@@ -275,24 +277,34 @@ function processElements(socketUpdate, socketMessage) {
 			.onValue(function (data) {
 				var cell = spreadSheet.getCellById(data.element);
 				var value = data.formula.toUpperCase();
-				pushers = [];
-				cell.formula = value;
-
-				if (_.isUndefined(value) || value === '') {
-					updateCell(cell, element, 0);
-					cell.expanded = '0';
-				} else {
-					value = window.parser.parse(value.replace('=', ''));
-					calculate(value, pushers)
-						.onValue(function (result) {
-							updateCell(cell, element, result);
+				var id = 'x' + (new Date()).getTime();
+				console.log('date stamps:', data.timestamp, cell.lastUpdated);
+				if (data.timestamp > cell.lastUpdated) {
+					pushers = [];
+					cell.formula = value;
+					if (cell.dispose) {
+						cell.dispose();
+					}
+					cell.dispose = null;
+					if (_.isUndefined(value) || value === '') {
+						updateCell(cell, element, 0);
+						cell.expanded = '0';
+					} else {
+						value = window.parser.parse(value.replace('=', ''));
+						cell.dispose = calculate(value, pushers)
+							.onValue(function (result) {
+								console.log('id:', id);
+								updateCell(cell, element, result);
+							});
+						pushers = _.uniqBy(pushers, function (cell) {
+							return cell.id;
 						});
-					pushers = _.uniqBy(pushers, function (cell) {
-						return cell.id;
-					});
-					_.forEach(pushers, function (cell) {
-						cell.pusher();
-					});
+						_.forEach(pushers, function (cell) {
+							cell.pusher();
+						});
+					}
+				} else {
+					console.log('server update rejected:', data);
 				}
 			});
 
@@ -322,6 +334,14 @@ function processElements(socketUpdate, socketMessage) {
 
 	spreadSheet.addCells(cells);
 	window.parser.setSpreadSheet(spreadSheet);
+
+	socketUpdate.onValue(function (data) {
+		console.log('update:', data);
+	});
+	/*
+		socketMessage.onValue(function (data) {
+			console.log('message:', data);
+		});*/
 }
 
 var userId;
@@ -341,12 +361,12 @@ socket.on('connect', function (data) {
 			sink(data);
 		});
 	});
+	/*
+		var socketMessage = Bacon.fromBinder(function (sink) {
+			socket.on('messages', function (data) {
+				sink(data);
+			});
+		});*/
 
-	var socketMessage = Bacon.fromBinder(function (sink) {
-		socket.on('messages', function (data) {
-			sink(data);
-		});
-	});
-
-	processElements(socketUpdate, socketMessage);
+	processElements(socketUpdate);
 });

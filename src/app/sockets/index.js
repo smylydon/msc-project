@@ -33,7 +33,7 @@ export default function (server) {
 			});
 			client.on('write', function (data) {
 				data.type = "update";
-				data.timestamep = (new Date())
+				data.timestamp = (new Date())
 					.getTime();
 				io.emit('update', data);
 				sink({
