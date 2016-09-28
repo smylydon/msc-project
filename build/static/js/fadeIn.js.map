@@ -1,1 +1,0 @@
-{"version":3,"sources":["fadeIn.js"],"names":["$","document","ready","fadeIn"],"mappings":"AAAA,YAAAA,GAAEC,UAAUC,MAAM,WAChBF,EAAE,YAAYG,OAAO","file":"fadeIn.js","sourcesContent":["$(document).ready(() => {\n  $('#wrapper').fadeIn(500);\n});\n"],"sourceRoot":"/source/"}
