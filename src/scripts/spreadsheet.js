@@ -192,6 +192,11 @@ function processElements(socketUpdate, socketMessage) {
 		return a / b;
 	}
 
+	function power(a, b) {
+		console.log('a ^ b:', a, b);
+		return Math.pow(a, b);
+	}
+
 	function fetchAndCombine(token, combiner, pushers) {
 		var right = '';
 		var left = calculate(token.left, pushers);
@@ -243,6 +248,9 @@ function processElements(socketUpdate, socketMessage) {
 				break;
 			case '/':
 				value = fetchAndCombine(token, divide, pushers);
+				break;
+			case '^':
+				value = fetchAndCombine(token, power, pushers);
 				break;
 			}
 		}

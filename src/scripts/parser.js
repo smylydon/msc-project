@@ -2,16 +2,16 @@ window.parser = (function () {
 	var functionRegex = /(sum|avg|mean)\(\s*[a-z]([1-9]\d+|[1-9])\s*:\s*[a-z]([1-9]\d+|[1-9])\s*\)/ig;
 	var cellRegex = /^[A-Z]([1-9]\d+|[1-9])$/i;
 	var cellRegex2 = /[A-Z]([1-9]\d+|[1-9])/ig;
-	var operatorRegex = /[+\-\/\*]/;
+	var operatorRegex = /[+\-\/\*\^]/;
 	var numberRegex = /^\d+(\.\d+)?$/;
 	var position = 0;
 	var tokens = [];
+	var tokenRegEx = /([A-Z]([1-9]\d+|[1-9])|\d+(\.\d+)?|[+\-\/\*\^]|\(|\))/ig;
 
 	function tokenize(value) {
 		var results = [];
-		var tokenRegEx = /([A-Z]([1-9]\d+|[1-9])|\d+(\.\d+)?|[+\-\/\*]|\(|\))/ig;
-
 		var m;
+
 		while ((m = tokenRegEx.exec(value)) !== null) {
 			results.push(m[0]); //save token
 		}
@@ -65,7 +65,7 @@ window.parser = (function () {
 		var expression = parsePrimary();
 		var token = peek();
 
-		while (token === '*' || token === '/') {
+		while (token === '*' || token === '/' || token === '^') {
 			token = next();
 			expression = {
 				token: token,
@@ -197,6 +197,11 @@ window.parser = (function () {
 				label = '#ERROR CYCULAR DEPENDENCY';
 			}
 		}
+		var matches = label.match(tokenRegEx);
+		if (matches.length > 1) {
+			label = '(' + label + ')';
+		}
+
 		return label;
 	}
 
@@ -221,6 +226,7 @@ window.parser = (function () {
 				value = '#ERROR';
 			}
 		} else {
+			console.log('tokenize:', value);
 			tokens = tokenize(value);
 			value = parseAdditive();
 		}
