@@ -179,24 +179,52 @@ window.parser = (function () {
 	 * C1 = B1 + A1
 	 *   -> A1 + 1 + A1
 	 *
+	 * Added code to check for circular dependencies.
+	 *
 	 * param {String} user input
 	 */
-	function expandCells(label) {
+	function expandCells(visitedCells, label) {
 		var cell = spreadSheet.getCellById(label);
 		var formula = cell.formula;
+
 		if (cellRegex2.test(formula)) {
-			label = formula.replace(cellRegex2, expandCells);
+			if (visitedCells.indexOf(label) < 0) {
+				var visited = [cell.id];
+				Array.prototype.push.apply(visited, visitedCells);
+				label = formula.replace(cellRegex2, curry(expandCells, visited));
+			} else {
+				console.log('#ERROR CYCULAR DEPENDENCY', label, visitedCells);
+				label = '#ERROR CYCULAR DEPENDENCY';
+			}
 		}
 		return label;
 	}
 
-	function parse(value) {
+	function curry() {
+		var args = Array.prototype.slice.call(arguments),
+			fn = args.shift();
+		return function () {
+			return fn.apply(fn, args.concat(Array.prototype.slice.call(arguments)));
+		};
+	}
+
+	function parse(value, label) {
 		value = value || '';
 		position = 0;
 		value = value.replace(functionRegex, expandSumAndMean);
-		value = value.replace(cellRegex2, expandCells);
-		tokens = tokenize(value);
-		return parseAdditive();
+		value = value.replace(cellRegex2, curry(expandCells, [label]));
+
+		if (/ERROR/ig.test(value)) {
+			if (/CIRCULAR/ig.test(value)) {
+				value = '#ERROR CYCULAR DEPENDENCY';
+			} else {
+				value = '#ERROR';
+			}
+		} else {
+			tokens = tokenize(value);
+			value = parseAdditive();
+		}
+		return value;
 	}
 
 	return {

@@ -257,7 +257,7 @@ function processElements(socketUpdate, socketMessage) {
 			element.val(cell.value);
 		}
 		localStorage[cell.id] = cell.formula;
-		console.log('cell:', cell.id, cell.value);
+		//console.log('cell:', cell.id, cell.value);
 		cell.pusher();
 	}
 
@@ -277,8 +277,7 @@ function processElements(socketUpdate, socketMessage) {
 			.onValue(function (data) {
 				var cell = spreadSheet.getCellById(data.element);
 				var value = data.formula.toUpperCase();
-				var id = 'x' + (new Date()).getTime();
-				console.log('date stamps:', data.timestamp, cell.lastUpdated);
+
 				if (data.timestamp > cell.lastUpdated) {
 					pushers = [];
 					cell.formula = value;
@@ -290,18 +289,21 @@ function processElements(socketUpdate, socketMessage) {
 						updateCell(cell, element, 0);
 						cell.expanded = '0';
 					} else {
-						value = window.parser.parse(value.replace('=', ''));
-						cell.dispose = calculate(value, pushers)
-							.onValue(function (result) {
-								console.log('id:', id);
-								updateCell(cell, element, result);
+						value = window.parser.parse(value.replace('=', ''), cell.id);
+						if (_.isString(value) && /ERROR/ig.test(value)) {
+							updateCell(cell, element, value);
+						} else {
+							cell.dispose = calculate(value, pushers)
+								.onValue(function (result) {
+									updateCell(cell, element, result);
+								});
+							pushers = _.uniqBy(pushers, function (cell) {
+								return cell.id;
 							});
-						pushers = _.uniqBy(pushers, function (cell) {
-							return cell.id;
-						});
-						_.forEach(pushers, function (cell) {
-							cell.pusher();
-						});
+							_.forEach(pushers, function (cell) {
+								cell.pusher();
+							});
+						}
 					}
 				} else {
 					console.log('server update rejected:', data);
@@ -348,7 +350,9 @@ var userId;
 /* eslint-disable */
 var socket = io.connect('http://localhost:5000');
 /* eslint-enable */
-
+_.forEach([1, 2], function (value) {
+	console.log('number:', value);
+});
 socket.on('connect', function (data) {
 	socket.emit('join', 'Hello World from client');
 
