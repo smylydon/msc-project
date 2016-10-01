@@ -61,38 +61,33 @@ window.parser = (function () {
 		return result;
 	}
 
-	function parseMultiplicative() {
-		var expression = parsePrimary();
+	function processOperator(condition, expressionCallback) {
+		var expression = expressionCallback();
 		var token = peek();
 
-		while (token === '*' || token === '/' || token === '^') {
+		while (condition(token)) {
 			token = next();
 			expression = {
 				token: token,
 				type: 'operator',
 				left: expression,
-				right: parsePrimary()
+				right: expressionCallback()
 			};
 			token = peek();
 		}
 		return expression;
 	}
 
-	function parseAdditive() {
-		var expression = parseMultiplicative();
-		var token = peek();
+	function parseMultiplicative() {
+		return processOperator(function (token) {
+			return token === '*' || token === '/' || token === '^';
+		}, parsePrimary);
+	}
 
-		while (token === '+' || token === '-') {
-			token = next();
-			expression = {
-				token: token,
-				type: 'operator',
-				left: expression,
-				right: parseMultiplicative()
-			};
-			token = peek();
-		}
-		return expression;
+	function parseAdditive() {
+		return processOperator(function (token) {
+			return token === '+' || token === '-';
+		}, parseMultiplicative);
 	}
 
 	function nextChar(c) {
@@ -127,6 +122,15 @@ window.parser = (function () {
 		var counter = 0;
 		var string = '#ERROR';
 		var fname = /sum/i.test(value) ? 'sum' : 'mean';
+		var createSeries = function (clause, increment) {
+			string = '';
+			while (clause()) {
+				string += '+' + startLetter + startNum;
+				increment();
+				counter++;
+			}
+			string = cleanupSumMean(string, fname, counter);
+		};
 
 		value = value.replace(/(sum|avg|mean|[\(\)]+)/ig, '')
 			.replace(' ', '');
@@ -138,33 +142,39 @@ window.parser = (function () {
 
 		if (startLetter === endLetter) {
 			if (endNum >= startNum) {
-				string = '';
-				while (startNum <= endNum) {
-					string += '+' + startLetter + startNum;
+				createSeries(function () {
+					return startNum <= endNum;
+				}, function () {
 					startNum++;
-					counter++;
-				}
-				string = cleanupSumMean(string, fname, counter);
+				});
 			}
 		} else if (endLetter >= startLetter) {
 			if (endNum === startNum) {
-				string = '';
-				while (startLetter <= endLetter) {
-					string += '+' + startLetter + startNum;
+				createSeries(function () {
+					return startLetter <= endLetter;
+				}, function () {
 					startLetter = nextChar(startLetter);
-					counter++;
-				}
-				string = cleanupSumMean(string, fname, counter);
+				});
 			}
 		}
 		console.log('>>>', string);
 		return string;
 	}
 
+	var socket;
 	var spreadSheet;
 
-	function setSpreadSheet(collection) {
-		spreadSheet = collection;
+	function setSpreadSheet(newSpreadSheet) {
+		spreadSheet = newSpreadSheet || spreadSheet;
+	}
+
+	function setSocket(newSocket) {
+		socket = newSocket || socket;
+	}
+
+	function init(spreadSheet, socket) {
+		setSpreadSheet(spreadSheet);
+		setSocket(socket);
 	}
 
 	/*
@@ -197,10 +207,11 @@ window.parser = (function () {
 				label = '#ERROR CYCULAR DEPENDENCY';
 			}
 		}
-		var matches = label.match(tokenRegEx);
-		if (matches.length > 1) {
-			label = '(' + label + ')';
-		}
+
+		//if there is more than one term in label
+		//use brackets to preserve arithmatic order
+		var match = label.match(tokenRegEx);
+		label = match && match.length > 1 ? '(' + label + ')' : label;
 
 		return label;
 	}
@@ -234,7 +245,9 @@ window.parser = (function () {
 	}
 
 	return {
+		init: init,
 		parse: parse,
+		setSocket: setSocket,
 		setSpreadSheet: setSpreadSheet
 	};
 })();

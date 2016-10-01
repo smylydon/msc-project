@@ -266,6 +266,14 @@ function processElements(socketUpdate, socketMessage) {
 		}
 		localStorage[cell.id] = cell.formula;
 		//console.log('cell:', cell.id, cell.value);
+
+		socket.emit('log', {
+			id: cell.id,
+			formula: cell.formula,
+			value: cell.value,
+			user_id: userId,
+			update: 'success'
+		});
 		cell.pusher();
 	}
 
@@ -305,12 +313,14 @@ function processElements(socketUpdate, socketMessage) {
 								.onValue(function (result) {
 									updateCell(cell, element, result);
 								});
-							pushers = _.uniqBy(pushers, function (cell) {
-								return cell.id;
-							});
-							_.forEach(pushers, function (cell) {
-								cell.pusher();
-							});
+
+							_(pushers)
+								.uniqBy(function (cell) {
+									return cell.id;
+								})
+								.forEach(function (cell) {
+									cell.pusher();
+								});
 						}
 					}
 				} else {
@@ -358,10 +368,10 @@ var userId;
 /* eslint-disable */
 var socket = io.connect('http://localhost:5000');
 /* eslint-enable */
-_.forEach([1, 2], function (value) {
-	console.log('number:', value);
-});
+
 socket.on('connect', function (data) {
+	window.parser.setSocket(socket);	//need it for logging
+
 	socket.emit('join', 'Hello World from client');
 
 	socket.on('userid', function (data) {
