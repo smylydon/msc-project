@@ -94,12 +94,41 @@ window.parser = (function () {
 		return String.fromCharCode(c.charCodeAt(0) + 1);
 	}
 
-	function cleanupSumMean(string, fname, counter) {
+
+	function createSumMean(direction, setter) {
+		var startLetter = setter.startLetter;
+		var endLetter = setter.endLetter;
+		var startNum = setter.startNum;
+		var endNum = setter.endNum;
+		var string = '';
+		var counter = 0;
+		var clause = direction === 'v' ? verticalClause : horizontalClause;
+		var increment = direction === 'v' ? verticalIncrement : horizontalIncrement;
+
+		function verticalClause() {
+			return startNum <= endNum;
+		}
+
+		function verticalIncrement() {
+			startNum++;
+		}
+
+		function horizontalClause() {
+			return startLetter <= endLetter;
+		}
+
+		function horizontalIncrement() {
+			startLetter = nextChar(startLetter);
+		}
+
+		while (clause()) {
+			string += '+' + startLetter + startNum;
+			increment();
+			counter++;
+		}
 		string = string.replace(/^\+/, '');
 		string = '(' + string + ')';
-		if (fname === 'mean') {
-			string = '(' + string + '/' + counter + ')';
-		}
+		string = setter.fname === 'mean' ? '(' + string + '/' + counter + ')' : string;
 		return string;
 	}
 
@@ -114,47 +143,26 @@ window.parser = (function () {
 	 * param {String} text rep of function
 	 */
 	function expandSumAndMean(value) {
-		var startLetter = '';
-		var endLetter = '';
-		var startNum = '';
-		var endNum = '';
-		var cells;
-		var counter = 0;
+		var cells = value.replace(/(sum|avg|mean|[\(\)]+)/ig, '')
+			.replace(' ', '')
+			.split(':');
 		var string = '#ERROR';
-		var fname = /sum/i.test(value) ? 'sum' : 'mean';
-		var createSeries = function (clause, increment) {
-			string = '';
-			while (clause()) {
-				string += '+' + startLetter + startNum;
-				increment();
-				counter++;
-			}
-			string = cleanupSumMean(string, fname, counter);
+
+		var setter = {
+			startLetter: cells[0][0],
+			endLetter: cells[1][0],
+			startNum: parseInt(cells[0][1]),
+			endNum: parseInt(cells[1][1]),
+			fname: /sum/i.test(value) ? 'sum' : 'mean'
 		};
 
-		value = value.replace(/(sum|avg|mean|[\(\)]+)/ig, '')
-			.replace(' ', '');
-		cells = value.split(':');
-		startLetter = cells[0][0];
-		endLetter = cells[1][0];
-		startNum = parseInt(cells[0][1]);
-		endNum = parseInt(cells[1][1]);
-
-		if (startLetter === endLetter) {
-			if (endNum >= startNum) {
-				createSeries(function () {
-					return startNum <= endNum;
-				}, function () {
-					startNum++;
-				});
+		if (setter.startLetter === setter.endLetter) {
+			if (setter.endNum > setter.startNum) {
+				string = createSumMean('v', setter);
 			}
-		} else if (endLetter >= startLetter) {
-			if (endNum === startNum) {
-				createSeries(function () {
-					return startLetter <= endLetter;
-				}, function () {
-					startLetter = nextChar(startLetter);
-				});
+		} else if (setter.endLetter > setter.startLetter) {
+			if (setter.endNum === setter.startNum) {
+				string = createSumMean('h', setter);
 			}
 		}
 		console.log('>>>', string);
@@ -203,13 +211,13 @@ window.parser = (function () {
 				Array.prototype.push.apply(visited, visitedCells);
 				label = formula.replace(cellRegex2, curry(expandCells, visited));
 			} else {
-				console.log('#ERROR CYCULAR DEPENDENCY', label, visitedCells);
-				label = '#ERROR CYCULAR DEPENDENCY';
+				console.log('#ERROR CIRCULAR DEPENDENCY', label, visitedCells);
+				label = '#ERROR CIRCULAR DEPENDENCY';
 			}
 		}
 
 		//if there is more than one term in label
-		//use brackets to preserve arithmatic order
+		//use brackets to preserve arithmetic order
 		var match = label.match(tokenRegEx);
 		label = match && match.length > 1 ? '(' + label + ')' : label;
 
@@ -232,7 +240,7 @@ window.parser = (function () {
 
 		if (/ERROR/ig.test(value)) {
 			if (/CIRCULAR/ig.test(value)) {
-				value = '#ERROR CYCULAR DEPENDENCY';
+				value = '#ERROR CIRCULAR DEPENDENCY';
 			} else {
 				value = '#ERROR';
 			}

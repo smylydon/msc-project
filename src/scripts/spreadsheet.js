@@ -266,15 +266,20 @@ function processElements(socketUpdate, socketMessage) {
 		}
 		localStorage[cell.id] = cell.formula;
 		//console.log('cell:', cell.id, cell.value);
+		log(cell, 'success');
+		cell.pusher();
+	}
 
+	function log(cell, result, action) {
+		action = action || 'update';
 		socket.emit('log', {
 			id: cell.id,
 			formula: cell.formula,
 			value: cell.value,
 			user_id: userId,
-			update: 'success'
+			update: result,
+			action: action
 		});
-		cell.pusher();
 	}
 
 	INPUTS.each(function (index, elem) {
@@ -324,7 +329,7 @@ function processElements(socketUpdate, socketMessage) {
 						}
 					}
 				} else {
-					console.log('server update rejected:', data);
+					log(cell, 'rejected');
 				}
 			});
 
@@ -358,10 +363,6 @@ function processElements(socketUpdate, socketMessage) {
 	socketUpdate.onValue(function (data) {
 		console.log('update:', data);
 	});
-	/*
-		socketMessage.onValue(function (data) {
-			console.log('message:', data);
-		});*/
 }
 
 var userId;
@@ -370,7 +371,7 @@ var socket = io.connect('http://localhost:5000');
 /* eslint-enable */
 
 socket.on('connect', function (data) {
-	window.parser.setSocket(socket);	//need it for logging
+	window.parser.setSocket(socket); //need it for logging
 
 	socket.emit('join', 'Hello World from client');
 
@@ -383,12 +384,6 @@ socket.on('connect', function (data) {
 			sink(data);
 		});
 	});
-	/*
-		var socketMessage = Bacon.fromBinder(function (sink) {
-			socket.on('messages', function (data) {
-				sink(data);
-			});
-		});*/
 
 	processElements(socketUpdate);
 });

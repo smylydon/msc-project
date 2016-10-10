@@ -41,6 +41,14 @@ export default function (server) {
 					data: data
 				});
 			});
+
+			client.on('log', function (data) {
+				data.type = "log";
+				sink({
+					type: 'frontend-log',
+					data: data
+				});
+			});
 		});
 	});
 
@@ -74,6 +82,7 @@ export default function (server) {
 		)
 		.onValues(function (label, value) {
 			if (label) {
+				console.log('label:', label, value);
 				if (/connect/i.test(label)) {
 					redisClient.set(label, label.replace('connect',''));
 					redisClient.expire(label, 86400);
