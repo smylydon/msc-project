@@ -209,7 +209,7 @@ window.parser = (function () {
 			if (visitedCells.indexOf(label) < 0) {
 				var visited = [cell.id];
 				Array.prototype.push.apply(visited, visitedCells);
-				label = formula.replace(cellRegex2, curry(expandCells, visited));
+				label = formula.replace(cellRegex2, expandCells.bind(this, visited));
 			} else {
 				console.log('#ERROR CIRCULAR DEPENDENCY', label, visitedCells);
 				label = '#ERROR CIRCULAR DEPENDENCY';
@@ -224,19 +224,11 @@ window.parser = (function () {
 		return label;
 	}
 
-	function curry() {
-		var args = Array.prototype.slice.call(arguments),
-			fn = args.shift();
-		return function () {
-			return fn.apply(fn, args.concat(Array.prototype.slice.call(arguments)));
-		};
-	}
-
 	function parse(value, label) {
 		value = value || '';
 		position = 0;
 		value = value.replace(functionRegex, expandSumAndMean);
-		value = value.replace(cellRegex2, curry(expandCells, [label]));
+		value = value.replace(cellRegex2, expandCells.bind(this, [label]));
 
 		if (/ERROR/ig.test(value)) {
 			if (/CIRCULAR/ig.test(value)) {
