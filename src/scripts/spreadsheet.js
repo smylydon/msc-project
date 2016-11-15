@@ -28,8 +28,11 @@ var CellFactory = (function () {
 	 * Pushes the current value to all subscribers.
 	 *
 	 */
-	Cell.prototype.pusher = function () {
-		this.bus.push(this.value);
+	Cell.prototype.pusher = function (pusherId) {
+		this.bus.push({
+			value: this.value,
+			pusher_id: pusherId
+		});
 	};
 
 	return {
@@ -80,9 +83,7 @@ var SpreadSheetFactory = (function () {
 	 */
 	SpreadSheet.prototype.addCells = function (cells) {
 		cells = _.isArray(cells) ? cells : [];
-		cells = cells.map(function (data) {
-			return CellFactory.getNewCell(data);
-		});
+		cells = cells.map((data)=> CellFactory.getNewCell(data));
 		Array.prototype.push.apply(this.cells, cells);
 	};
 
@@ -100,11 +101,10 @@ var SpreadSheetFactory = (function () {
 	 * param {Array} a list of ids to remove
 	 */
 	SpreadSheet.prototype.removeCellsById = function (ids) {
+		var that = this;
 		ids = _.isArray(ids) ? ids : [];
 		_.forEach(ids, function (id) {
-			_.remove(this.cells, function (cell) {
-				return cell.id === id;
-			});
+			that.removeCellById(id);
 		});
 	};
 
@@ -118,9 +118,7 @@ var SpreadSheetFactory = (function () {
 	 * param {String} id the id of the cell to be removed
 	 */
 	SpreadSheet.prototype.removeCellById = function (id) {
-		_.remove(this.cells, function (cell) {
-			return cell.id === id;
-		});
+		_.remove(this.cells, (cell)=> cell.id === id );
 	};
 
 	return {
@@ -150,15 +148,14 @@ function contrainValue(value, min, max) {
  * return void
  */
 function drawSpreadSheet(width, height) {
+	var table = document.querySelector("table");
 	width = contrainValue(width, 1, 27);
 	height = contrainValue(height, 1, 20);
 
-	var table = document.querySelector("table");
-
-	for (var i = 0; i < height; i++) {
-		var row = table.insertRow(-1);
-		for (var j = 0; j < width; j++) {
-			var letter = String.fromCharCode("A".charCodeAt(0) + j - 1);
+	for (let i = 0; i < height; i++) {
+		let row = table.insertRow(-1);
+		for (let j = 0; j < width; j++) {
+			let letter = String.fromCharCode("A".charCodeAt(0) + j - 1);
 			row.insertCell(-1)
 				.innerHTML = i && j ? "<input id='" + letter + i +
 				"' class='spreadsheet-cell' />" :
@@ -172,29 +169,50 @@ drawSpreadSheet(10, 10);
 var INPUTS = $('.spreadsheet-cell'); //get all inputs
 var cells = [];
 
+function processPusherId(value, a, b) {
+	var pusherId1 = a.pusher_id;
+	var pusherId2 = b.pusher_id;
+	var obj = {
+		value: value
+	};
+
+	if (pusherId1 === 'self' || pusherId2 === 'self') {
+		obj.pusher_id = 'self';
+	} else if (pusherId1 === 'const' || _.isNull(pusherId2)) {
+		obj.pusher_id = 'const';
+	} else if (_.isNull(pusherId1) || pusherId2 === 'const') {
+		obj.pusher_id = 'const';
+	}
+
+	return obj;
+}
+
 function processElements(socketUpdate, socketMessage) {
 	function add(a, b) {
-		return a + b;
+		console.log('add:', a.value, b.value);
+		return processPusherId(a.value + b.value, a, b);
 	}
 
 	function minus(a, b) {
-		return a - b;
+		return processPusherId(a.value - b.value, a, b);
 	}
 
 	function multiply(a, b) {
-		return a * b;
+		return processPusherId(a.value * b.value, a, b);
 	}
 
 	function divide(a, b) {
+		var value;
 		if (b === 0) {
-			return 0;
+			value = '#ERROR DIVISION BY ZERO ERROR';
+		} else {
+			value = a.value / b.value;
 		}
-		return a / b;
+		return processPusherId(value, a, b);
 	}
 
 	function power(a, b) {
-		console.log('a ^ b:', a, b);
-		return Math.pow(a, b);
+		return processPusherId(Math.pow(a.value, b.value), a, b);
 	}
 
 	function fetchAndCombine(token, combiner, pushers) {
@@ -204,9 +222,16 @@ function processElements(socketUpdate, socketMessage) {
 		if (token.right) {
 			right = calculate(token.right, pushers);
 		} else {
-			right = Bacon.constant(0);
+			right = createConstant(0);
 		}
 		return left.combine(right, combiner);
+	}
+
+	function createConstant(value) {
+		return Bacon.constant({
+			value: Number(value),
+			pusher_id: "const"
+		});
 	}
 
 	function calculate(token, pushers) {
@@ -215,7 +240,7 @@ function processElements(socketUpdate, socketMessage) {
 		var value = 0;
 
 		if (token.type === 'number') {
-			value = Bacon.constant(parseFloat(token.token));
+			value = createConstant(token.token);
 		} else if (token.type === 'cellname') {
 			value = spreadSheet.getCellById(token.token);
 			pushers.push(value);
@@ -225,7 +250,7 @@ function processElements(socketUpdate, socketMessage) {
 			if (token.token === '+') {
 				value = right;
 			} else {
-				left = Bacon.constant(0);
+				left = createConstant(0);
 				value = left.combine(right, minus);
 			}
 		} else if (token.type === "leftparen") {
@@ -265,9 +290,8 @@ function processElements(socketUpdate, socketMessage) {
 			element.val(cell.value);
 		}
 		localStorage[cell.id] = cell.formula;
-		//console.log('cell:', cell.id, cell.value);
 		log(cell, 'success');
-		cell.pusher();
+		cell.pusher('self');
 	}
 
 	function log(cell, result, action) {
@@ -298,6 +322,7 @@ function processElements(socketUpdate, socketMessage) {
 			.onValue(function (data) {
 				var cell = spreadSheet.getCellById(data.element);
 				var value = data.formula.toUpperCase();
+				var cellId = cell.id;
 
 				if (data.timestamp > cell.lastUpdated) {
 					pushers = [];
@@ -316,15 +341,21 @@ function processElements(socketUpdate, socketMessage) {
 						} else {
 							cell.dispose = calculate(value, pushers)
 								.onValue(function (result) {
-									updateCell(cell, element, result);
+									if (!_.isNumber(result)) {
+										var pusherId = _.trim(result.pusher_id);
+										if (/^(self|const)$/ig.test(pusherId) || pusherId === cellId) {
+											//console.log('onValue:', result.value, cellId);
+											updateCell(cell, element, result.value);
+										}
+									}
 								});
 
 							_(pushers)
-								.uniqBy(function (cell) {
-									return cell.id;
+								.uniqBy(function (aCell) {
+									return aCell.id;
 								})
-								.forEach(function (cell) {
-									cell.pusher();
+								.forEach(function (aCell) {
+									aCell.pusher(cellId);
 								});
 						}
 					}

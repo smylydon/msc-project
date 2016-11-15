@@ -4,7 +4,6 @@ window.parser = (function () {
 	var cellRegex2 = /[A-Z]([1-9]\d+|[1-9])/ig;
 	var operatorRegex = /[+\-\/\*\^]/;
 	var numberRegex = /^\d+(\.\d+)?$/;
-	var position = 0;
 	var tokens = [];
 	var tokenRegEx = /([A-Z]([1-9]\d+|[1-9])|\d+(\.\d+)?|[+\-\/\*\^]|\(|\))/ig;
 
@@ -19,17 +18,15 @@ window.parser = (function () {
 	}
 
 	function peek() {
-		return tokens[position];
+		return tokens[0];
 	}
 
 	function next() {
-		var value = peek();
-		position++;
-		return value;
+		return tokens.shift();
 	}
 
 	function createToken(value, type) {
-		position++;
+		next();
 		return {
 			token: value,
 			type: type
@@ -226,12 +223,11 @@ window.parser = (function () {
 
 	function parse(value, label) {
 		value = value || '';
-		position = 0;
 		value = value.replace(functionRegex, expandSumAndMean);
-		value = value.replace(cellRegex2, expandCells.bind(this, [label]));
+		var circular = value.replace(cellRegex2, expandCells.bind(this, [label]));
 
-		if (/ERROR/ig.test(value)) {
-			if (/CIRCULAR/ig.test(value)) {
+		if (/ERROR/ig.test(circular)) {
+			if (/CIRCULAR/ig.test(circular)) {
 				value = '#ERROR CIRCULAR DEPENDENCY';
 			} else {
 				value = '#ERROR';
