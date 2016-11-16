@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node app.js",
     "test": "gulp test",
-    "postinstall": "./node_modules/bower/bin/bower install && gulp build"
+    "postinstall": "gulp build"
   },
   "author": "smylydon",
   "repository": "smylydon/msc-project",
