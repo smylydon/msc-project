@@ -4,8 +4,8 @@
   "description": "masters degree project",
   "main": "app.js",
   "scripts": {
+    "start": "node build/app.js",
     "test": "gulp test",
-    "postinstall": "gulp"
   },
   "author": "smylydon",
   "repository": "smylydon/msc-project",
