@@ -185,8 +185,7 @@ window.parser = (function () {
 	/*
 	 * expandCells
 	 *
-	 * Recursively removes transitive relationships. If this is not done
-	 * it results in glitches.
+	 * Recursively removes transitive relationships.
 	 *
 	 * Example:
 	 * A1 = 1

@@ -189,7 +189,6 @@ function processPusherId(value, a, b) {
 
 function processElements(socketUpdate, socketMessage) {
 	function add(a, b) {
-		console.log('add:', a.value, b.value);
 		return processPusherId(a.value + b.value, a, b);
 	}
 
@@ -203,7 +202,7 @@ function processElements(socketUpdate, socketMessage) {
 
 	function divide(a, b) {
 		var value;
-		if (b === 0) {
+		if (b.value === 0) {
 			value = '#ERROR DIVISION BY ZERO ERROR';
 		} else {
 			value = a.value / b.value;
@@ -344,7 +343,6 @@ function processElements(socketUpdate, socketMessage) {
 									if (!_.isNumber(result)) {
 										var pusherId = _.trim(result.pusher_id);
 										if (/^(self|const)$/ig.test(pusherId) || pusherId === cellId) {
-											//console.log('onValue:', result.value, cellId);
 											updateCell(cell, element, result.value);
 										}
 									}
