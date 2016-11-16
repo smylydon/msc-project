@@ -2,9 +2,9 @@
   "name": "msc-project",
   "version": "0.0.1",
   "description": "masters degree project",
-  "main": "app.js",
+  "main": "./build/app.js",
   "scripts": {
-    "start": "node app.js",
+    "start": "node ./build/app.js",
     "test": "gulp test",
     "postinstall": "gulp build"
   },
