@@ -2,9 +2,9 @@
   "name": "msc-project",
   "version": "0.0.1",
   "description": "masters degree project",
-  "main": "app.js",
+  "main": "./src/app.js",
   "scripts": {
-    "start": "node build/app.js",
+    "start": "node ./src/app.js",
     "test": "gulp test"
   },
   "author": "smylydon",
