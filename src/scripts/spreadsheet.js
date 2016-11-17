@@ -396,7 +396,7 @@ function processElements(socketUpdate, socketMessage) {
 
 var userId;
 /* eslint-disable */
-var socket = io.connect('http://localhost:5000');
+var socket = io();//io.connect('http://localhost:5000');
 /* eslint-enable */
 
 socket.on('connect', function (data) {
