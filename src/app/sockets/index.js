@@ -1,20 +1,20 @@
 'use strict';
 
 import socket from 'socket.io';
-import redis from 'redis';
+//import redis from 'redis';
 import bacon from 'baconjs';
-import logger from '../helpers/logger';
+//import logger from '../helpers/logger';
 
 // export sockets
 export default function (server) {
 	const Bacon = bacon.Bacon;
 	const io = socket(server);
-	const redisClient = redis.createClient();
-
+	//const redisClient = redis.createClient();
+/*
 	redisClient.on('connect', function (error, value) {
 		logger.info('connected to redis');
 	});
-
+*/
 	// set basic routes
 	var connections = Bacon.fromBinder(function (sink) {
 		io.on('connect', sink);
@@ -57,7 +57,7 @@ export default function (server) {
 			return [label, value];
 		};
 	}
-
+/*
 	function logMessages(value) {
 		var label = 'message';
 		var type = value.type;
@@ -73,7 +73,7 @@ export default function (server) {
 		}
 		return label;
 	}
-
+*/
 	Bacon.mergeAll(
 			connections.map(function (value) {
 				return tag('connect' + value.id);
@@ -83,6 +83,7 @@ export default function (server) {
 		.onValues(function (label, value) {
 			if (label) {
 				console.log('label:', label, value);
+				/*
 				if (/connect/i.test(label)) {
 					redisClient.set(label, label.replace('connect',''));
 					redisClient.expire(label, 86400);
@@ -90,7 +91,7 @@ export default function (server) {
 					label = logMessages(value);
 					redisClient.set(label, JSON.stringify(value));
 					redisClient.expire(label, 3600);
-				}
+				}*/
 			}
 		});
 }

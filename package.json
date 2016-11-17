@@ -2,10 +2,11 @@
   "name": "msc-project",
   "version": "0.0.1",
   "description": "masters degree project",
-  "main": "./src/app.js",
+  "main": "build/app.js",
   "scripts": {
-    "start": "node ./src/app.js",
-    "test": "gulp test"
+    "start": "node build/app.js",
+    "test": "gulp test",
+    "postinstall": "./node_modules/bower/bin/bower install && gulp build"
   },
   "author": "smylydon",
   "repository": "smylydon/msc-project",
