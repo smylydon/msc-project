@@ -9,7 +9,7 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
 import handlebars from 'express-handlebars';
-//import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 import favicon from 'serve-favicon';
 // local
 import config from './config';
@@ -20,7 +20,7 @@ import logger from './app/helpers/logger';
 // EXPRESS SET-UP
 // create app
 const app = express();
-// use jade and set views and static directories
+// use handlebars and set views and static directories
 
 app.set('views', path.join(config.root, 'app/views'));
 app.engine('hbs', handlebars({
@@ -38,6 +38,10 @@ app.use(compress());
 app.use(cookieParser());
 app.use(favicon(path.join(config.root, 'static/img/favicon.png')));
 app.use(helmet());
+
+// load all models
+require(path.join(config.root, 'app/models'));
+
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
 	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
@@ -63,6 +67,13 @@ app.use((err, req, res, next) => {
 		message: err.message,
 		stack: config.env === 'development' ? err.stack : ''
 	});
+});
+
+// MONGOOSE SET-UP
+mongoose.connect(config.db);
+const db = mongoose.connection;
+db.on('error', () => {
+	throw new Error(`unable to connect to database at ${config.db}`);
 });
 
 // START AND STOP

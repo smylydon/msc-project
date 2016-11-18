@@ -289,7 +289,7 @@ function processElements(socketUpdate, socketMessage) {
 			element.val(cell.value);
 		}
 		localStorage[cell.id] = cell.formula;
-		log(cell, 'success');
+		log(cell, 'success','brower cell update');
 		cell.pusher('self');
 	}
 
@@ -358,7 +358,7 @@ function processElements(socketUpdate, socketMessage) {
 						}
 					}
 				} else {
-					log(cell, 'rejected');
+					log(cell, 'fail','brower cell update');
 				}
 			});
 

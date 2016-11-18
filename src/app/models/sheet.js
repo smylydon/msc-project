@@ -10,5 +10,5 @@ const schema = new mongoose.Schema({
 },{strict: false});
 // virtual date attribute
 schema.virtual('date').get(() => this._id.getTimestamp());
-// assign schema to 'Movie'
+// assign schema to 'Sheet'
 mongoose.model('Sheet', schema);
