@@ -39,9 +39,6 @@ app.use(cookieParser());
 app.use(favicon(path.join(config.root, 'static/img/favicon.png')));
 app.use(helmet());
 
-// load all models
-require(path.join(config.root, 'app/models'));
-
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
 	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
@@ -49,8 +46,13 @@ app.use((req, res, next) => {
 		'X-Requested-With, Content-Type, Authorization');
 	next();
 });
+
+// load all models
+require(path.join(config.root, 'app/models'));
+
 // set all controllers
 app.use('/', controllers);
+
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
 	const err = new Error('Not Found');

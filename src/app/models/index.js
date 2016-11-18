@@ -7,7 +7,7 @@
 
  import path from 'path';
  import glob from 'glob'; // this is NOT in package.json by default
- glob.sync(path.join(__dirname, '!(index).js')).forEach(model => {
-   console.log('mode:', model);
+ glob.sync(path.join(__dirname, '!(index|movie).js')).forEach(model => {
+   console.log('model:', model);
    require(model);
  });
