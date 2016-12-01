@@ -54,6 +54,7 @@ var SpreadSheetFactory = (function () {
 	function SpreadSheet(cells) {
 		this.cells = [];
 		this.addCells(cells);
+		this.browserTimestamp = false;
 	}
 
 	/*
@@ -83,7 +84,7 @@ var SpreadSheetFactory = (function () {
 	 */
 	SpreadSheet.prototype.addCells = function (cells) {
 		cells = _.isArray(cells) ? cells : [];
-		cells = cells.map((data)=> CellFactory.getNewCell(data));
+		cells = cells.map((data) => CellFactory.getNewCell(data));
 		Array.prototype.push.apply(this.cells, cells);
 	};
 
@@ -118,7 +119,7 @@ var SpreadSheetFactory = (function () {
 	 * param {String} id the id of the cell to be removed
 	 */
 	SpreadSheet.prototype.removeCellById = function (id) {
-		_.remove(this.cells, (cell)=> cell.id === id );
+		_.remove(this.cells, (cell) => cell.id === id);
 	};
 
 	return {
@@ -187,7 +188,7 @@ function processPusherId(value, a, b) {
 	return obj;
 }
 
-function processElements(socketUpdate, socketMessage) {
+function processElements(socketUpdate, timestampModeUpdate) {
 	function add(a, b) {
 		return processPusherId(a.value + b.value, a, b);
 	}
@@ -289,7 +290,7 @@ function processElements(socketUpdate, socketMessage) {
 			element.val(cell.value);
 		}
 		localStorage[cell.id] = cell.formula;
-		log(cell, 'success','brower cell update');
+		log(cell, 'success', 'brower cell update');
 		cell.pusher('self');
 	}
 
@@ -358,7 +359,7 @@ function processElements(socketUpdate, socketMessage) {
 						}
 					}
 				} else {
-					log(cell, 'fail','brower cell update');
+					log(cell, 'fail', 'brower cell update');
 				}
 			});
 
@@ -374,11 +375,15 @@ function processElements(socketUpdate, socketMessage) {
 			.map(function (event) {
 				var elementid = event.target.id;
 				var formula = event.target.value;
+				var browserTimestamp = spreadSheet.browserTimestamp;
 
 				return {
 					element: elementid,
 					formula: formula,
-					user_id: userId
+					user_id: userId,
+					browserTimestamp: browserTimestamp,
+					timestamp: browserTimestamp ? (new Date())
+						.getTime() : 0
 				};
 			})
 			.onValue(function (data) {
@@ -392,11 +397,31 @@ function processElements(socketUpdate, socketMessage) {
 	socketUpdate.onValue(function (data) {
 		console.log('update:', data);
 	});
+
+	var timestampMode = $('#timestampMode');
+	timestampMode
+		.asEventStream('click')
+		.map(function (event) {
+			return event.currentTarget.checked;
+		})
+		.onValue(function (data) {
+			spreadSheet.browserTimestamp = data;
+			socket.emit('timestampMode', {
+				timestampMode: data,
+				user_id: userId
+			});
+		});
+
+	timestampModeUpdate.onValue(function (data) {
+		var mode = data.timestampMode;
+		spreadSheet.browserTimestamp = mode;
+		timestampMode.prop("checked", mode);
+	});
 }
 
 var userId;
 /* eslint-disable */
-var socket = io();//io.connect('http://localhost:5000');
+var socket = io(); //io.connect('http://localhost:5000');
 /* eslint-enable */
 
 socket.on('connect', function (data) {
@@ -414,5 +439,11 @@ socket.on('connect', function (data) {
 		});
 	});
 
-	processElements(socketUpdate);
+	var timestampModeUpdate = Bacon.fromBinder(function (sink) {
+		socket.on('timestampMode', function (data) {
+			sink(data);
+		});
+	});
+
+	processElements(socketUpdate, timestampModeUpdate);
 });

@@ -10,11 +10,11 @@ export default function (server) {
 	const Bacon = bacon.Bacon;
 	const io = socket(server);
 	//const redisClient = redis.createClient();
-/*
-	redisClient.on('connect', function (error, value) {
-		logger.info('connected to redis');
-	});
-*/
+	/*
+		redisClient.on('connect', function (error, value) {
+			logger.info('connected to redis');
+		});
+	*/
 	// set basic routes
 	var connections = Bacon.fromBinder(function (sink) {
 		io.on('connect', sink);
@@ -31,10 +31,13 @@ export default function (server) {
 					data: timestamep
 				});
 			});
+
 			client.on('write', function (data) {
 				data.type = "update";
-				data.timestamp = (new Date())
-					.getTime();
+				if (!data.browserTimestamp) {
+					data.timestamp = (new Date())
+						.getTime();
+				}
 				io.emit('update', data);
 				sink({
 					type: 'write',
@@ -49,6 +52,15 @@ export default function (server) {
 					data: data
 				});
 			});
+
+			client.on('timestampMode', function (data) {
+				io.emit('timestampMode', data);
+				sink({
+					type: 'timestampMode',
+					data: data
+				});
+			});
+
 		});
 	});
 
@@ -57,23 +69,23 @@ export default function (server) {
 			return [label, value];
 		};
 	}
-/*
-	function logMessages(value) {
-		var label = 'message';
-		var type = value.type;
+	/*
+		function logMessages(value) {
+			var label = 'message';
+			var type = value.type;
 
-		switch (type) {
-		case 'join':
-			label = type + value.data;
-			break;
-		case 'update':
-		case 'write':
-			label = 'update' + value.data.user_id + '_' + value.data.element;
-			break;
+			switch (type) {
+			case 'join':
+				label = type + value.data;
+				break;
+			case 'update':
+			case 'write':
+				label = 'update' + value.data.user_id + '_' + value.data.element;
+				break;
+			}
+			return label;
 		}
-		return label;
-	}
-*/
+	*/
 	Bacon.mergeAll(
 			connections.map(function (value) {
 				return tag('connect' + value.id);
