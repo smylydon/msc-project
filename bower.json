@@ -9,9 +9,9 @@
   ],
   "dependencies": {
     "jquery": "^2.2.2",
-    "bacon": "^0.7.85",
     "socket.io-client": "^1.4.8",
-    "lodash": "^4.15.0"
+    "lodash": "^4.15.0",
+    "flyd": "^0.2.3"
   },
   "overrides": {
     "socket.io-client": {
