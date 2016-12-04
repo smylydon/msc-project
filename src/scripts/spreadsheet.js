@@ -296,14 +296,16 @@ function processElements(socketUpdate, timestampModeUpdate) {
 
 	function log(cell, result, action) {
 		action = action || 'update';
-		socket.emit('log', {
+		var obj = {
 			id: cell.id,
 			formula: cell.formula,
 			value: cell.value,
 			user_id: userId,
 			update: result,
 			action: action
-		});
+		};
+		console.log(obj);
+		socket.emit('log',obj );
 	}
 
 	INPUTS.each(function (index, elem) {

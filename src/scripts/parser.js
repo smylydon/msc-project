@@ -7,6 +7,14 @@ window.parser = (function () {
 	var tokens = [];
 	var tokenRegEx = /([A-Z]([1-9]\d+|[1-9])|\d+(\.\d+)?|[+\-\/\*\^]|\(|\))/ig;
 
+	/*
+	 * tokenize
+	 *
+	 * Uses the tokenRegEx to scan for valid input such as A1 or -100.20.
+	 *
+	 * param {String} text rep of function
+	 * returns {Array} array of tokens
+	 */
 	function tokenize(value) {
 		var results = [];
 		var m;
@@ -17,14 +25,37 @@ window.parser = (function () {
 		return results;
 	}
 
+	/*
+	 * peek
+	 *
+	 * Returns the token at the head of the list.
+	 *
+	 * returns {String} token
+	 */
 	function peek() {
 		return tokens[0];
 	}
 
+	/*
+	 * next
+	 *
+	 * Pulls the token at the head of the list.
+	 *
+	 * returns {String} token
+	 */
 	function next() {
 		return tokens.shift();
 	}
 
+	/*
+	 * createToken
+	 *
+	 * Pulls the token at the head of the list.
+	 *
+	 * param {String} token
+	 * param {String} token type
+	 * returns {Object} token object
+	 */
 	function createToken(value, type) {
 		next();
 		return {
@@ -33,18 +64,25 @@ window.parser = (function () {
 		};
 	}
 
+	/*
+	 * parsePrimary
+	 *
+	 * Pulls the token at the head of the list.
+	 *
+	 * returns {Object} token object
+	 */
 	function parsePrimary() {
 		var result = {};
 		var value = peek();
 
 		if (operatorRegex.test(value)) {
 			result = createToken(value, 'unary');
-			result.right = parseAdditive();
+			result.right = parseAdditionSubtraction();
 		} else if (numberRegex.test(value)) {
 			result = createToken(value, 'number');
 		} else if (/^\($/.test(value)) {
 			result = createToken(value, 'leftparen');
-			result.left = parseAdditive();
+			result.left = parseAdditionSubtraction();
 			value = peek();
 			if (value === ')') {
 				result.right = createToken(value, 'rightparen');
@@ -58,6 +96,15 @@ window.parser = (function () {
 		return result;
 	}
 
+	/*
+	 * processOperator
+	 *
+	 * Pulls the token at the head of the list.
+	 *
+	 * param {Function} condition check
+	 * param {Function} operation with higher precedence
+	 * returns {Object} token object
+	 */
 	function processOperator(condition, expressionCallback) {
 		var expression = expressionCallback();
 		var token = peek();
@@ -75,16 +122,43 @@ window.parser = (function () {
 		return expression;
 	}
 
-	function parseMultiplicative() {
+	/*
+	 * parseExponent
+	 *
+	 * Process exponents
+	 *
+	 * returns {Object} token object
+	 */
+	function parseExponents() {
 		return processOperator(function (token) {
-			return token === '*' || token === '/' || token === '^';
+			return token === '^';
 		}, parsePrimary);
 	}
 
-	function parseAdditive() {
+	/*
+	 * parseMultiplicationDivision
+	 *
+	 * Process multiplication and division.
+	 *
+	 * returns {Object} token object
+	 */
+	function parseMultiplicationDivision() {
+		return processOperator(function (token) {
+			return token === '*' || token === '/';
+		}, parseExponents);
+	}
+
+	/*
+	 * parseAdditionSubtraction
+	 *
+	 * Process addition or subtraction
+	 *
+	 * returns {Object} token object
+	 */
+	function parseAdditionSubtraction() {
 		return processOperator(function (token) {
 			return token === '+' || token === '-';
-		}, parseMultiplicative);
+		}, parseMultiplicationDivision);
 	}
 
 	function nextChar(c) {
@@ -234,7 +308,7 @@ window.parser = (function () {
 		} else {
 			console.log('tokenize:', value);
 			tokens = tokenize(value);
-			value = parseAdditive();
+			value = parseAdditionSubtraction();
 		}
 		return value;
 	}
