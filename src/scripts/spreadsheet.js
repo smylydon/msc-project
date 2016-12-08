@@ -8,9 +8,9 @@ var Bacon = Bacon;
  */
 var CellFactory = (function () {
 	/*
-	 * Constructor
+	 * @Constructor
 	 *
-	 * param {Object} json object containing cell data
+	 * @param {Object} json object containing cell data
 	 */
 	function Cell(data) {
 		this.id = data.id;
@@ -23,10 +23,9 @@ var CellFactory = (function () {
 	}
 
 	/*
-	 * pusher
-	 *
+	 * @method pusher
+	 * @description
 	 * Pushes the current value to all subscribers.
-	 *
 	 */
 	Cell.prototype.pusher = function (pusherId) {
 		this.bus.push({
@@ -47,9 +46,9 @@ var CellFactory = (function () {
  */
 var SpreadSheetFactory = (function () {
 	/*
-	 * Constructor
+	 * @Constructor
 	 *
-	 * param {Array} optional array containing cell data.
+	 * @param {Array} optional array containing cell data.
 	 */
 	function SpreadSheet(cells) {
 		this.cells = [];
@@ -58,13 +57,13 @@ var SpreadSheetFactory = (function () {
 	}
 
 	/*
-	 * getCellById
-	 *
+	 * @method getCellById
+	 * @description
 	 * Returns the the first cell taht match the id
 	 * or returns undefined.
 	 *
-	 * param {string} id of cell
-	 * return {Cell}
+	 * @param {string} id of cell
+	 * @returns {Cell}
 	 */
 	SpreadSheet.prototype.getCellById = function (id) {
 		return _.find(this.cells, {
@@ -73,14 +72,14 @@ var SpreadSheetFactory = (function () {
 	};
 
 	/*
-	 * addCells
-	 *
+	 * @method addCells
+	 * @description
 	 * Accepts an array of json objects. A collection of
 	 * Cell objects are create using the json objects.
 	 * The cells are added to collection of spreadsheet
 	 * cells.
 	 *
-	 * param {Array} an array of json objects
+	 * @param {Array} an array of json objects
 	 */
 	SpreadSheet.prototype.addCells = function (cells) {
 		cells = _.isArray(cells) ? cells : [];
@@ -88,18 +87,26 @@ var SpreadSheetFactory = (function () {
 		Array.prototype.push.apply(this.cells, cells);
 	};
 
+	/*
+	 * @method addCell
+	 * @description
+	 * Accepts a json objects. Creates a cell object and
+	 * adds it to the collection of cells.
+	 *
+	 * @param {Array} a json
+	 */
 	SpreadSheet.prototype.addCell = function (data) {
 		this.cells.push(CellFactory.getNewCell(data));
 	};
 
 	/*
-	 * removeCellsById
-	 *
+	 * @method removeCellsById
+	 * @description
 	 * Accepts a list of cell ids. Cells matching each
 	 * are removed one at a time from the collection
 	 * of spreatsheet cells.
 	 *
-	 * param {Array} a list of ids to remove
+	 * @param {Array} a list of ids to remove
 	 */
 	SpreadSheet.prototype.removeCellsById = function (ids) {
 		var that = this;
@@ -110,13 +117,13 @@ var SpreadSheetFactory = (function () {
 	};
 
 	/*
-	 * removeCellById
-	 *
+	 * @method removeCellById
+	 * @description
 	 * Accepts an id of a cell that needs to be removed.
 	 * Cells that match the id are removed one at a time
 	 * from the collection of spreatsheet cells.
 	 *
-	 * param {String} id the id of the cell to be removed
+	 * @param {String} id the id of the cell to be removed
 	 */
 	SpreadSheet.prototype.removeCellById = function (id) {
 		_.remove(this.cells, (cell) => cell.id === id);
@@ -142,11 +149,11 @@ function contrainValue(value, min, max) {
 }
 
 /*
- * drawSpreadSheet
+ * @function drawSpreadSheet
  *
- * param {int} width
- * param {int} height
- * return void
+ * @param {int} width
+ * @param {int} height
+ * @return void
  */
 function drawSpreadSheet(width, height) {
 	var table = document.querySelector("table");
@@ -188,6 +195,13 @@ function processPusherId(value, a, b) {
 	return obj;
 }
 
+/*
+ * @function processElements
+ *
+ * @param {Object} socketUpdate stream
+ * @param {Object} timestampModeUpdate stream
+ * @return void
+ */
 function processElements(socketUpdate, timestampModeUpdate) {
 	function add(a, b) {
 		return processPusherId(a.value + b.value, a, b);
@@ -201,6 +215,15 @@ function processElements(socketUpdate, timestampModeUpdate) {
 		return processPusherId(a.value * b.value, a, b);
 	}
 
+	/*
+	 * @function divide
+	 * @description
+	 * Divides a by b. Checks for division by zero.
+	 *
+	 * @param {Number} a
+	 * @param {Number} b
+	 * @return {Object} a new stream
+	 */
 	function divide(a, b) {
 		var value;
 		if (b.value === 0) {
@@ -215,6 +238,16 @@ function processElements(socketUpdate, timestampModeUpdate) {
 		return processPusherId(Math.pow(a.value, b.value), a, b);
 	}
 
+	/*
+	 * @function fetchAndCombine
+	 * @description
+	 *
+	 *
+	 * @param {Object} a token
+	 * @param {Function} combiner - combinator function.
+	 * @param {Array} pusher - array of cells to push.
+	 * @return {Object} a new stream
+	 */
 	function fetchAndCombine(token, combiner, pushers) {
 		var right = '';
 		var left = calculate(token.left, pushers);
@@ -227,6 +260,14 @@ function processElements(socketUpdate, timestampModeUpdate) {
 		return left.combine(right, combiner);
 	}
 
+	/*
+	 * @function createConstant
+	 * @description
+	 * Accepts a number and returns a Bacon property.
+	 *
+	 * @param {Number} value - a number
+	 * @return {Object} a new property
+	 */
 	function createConstant(value) {
 		return Bacon.constant({
 			value: Number(value),
@@ -234,6 +275,15 @@ function processElements(socketUpdate, timestampModeUpdate) {
 		});
 	}
 
+	/*
+	 * @function calculate
+	 * @description
+	 *
+	 *
+	 * @param {Object} a token
+	 * @param {Array} pusher - array of cells to push.
+	 * @return {Object} a new stream
+	 */
 	function calculate(token, pushers) {
 		var left = 0;
 		var right = 0;
@@ -305,7 +355,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 			action: action
 		};
 		console.log(obj);
-		socket.emit('log',obj );
+		socket.emit('log', obj);
 	}
 
 	INPUTS.each(function (index, elem) {
@@ -325,7 +375,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 				var cell = spreadSheet.getCellById(data.element);
 				var value = data.formula.toUpperCase();
 				var cellId = cell.id;
-
+				console.log('lastUpdated:', cell.lastUpdated);
 				if (data.timestamp > cell.lastUpdated) {
 					pushers = [];
 					cell.formula = value;
@@ -336,11 +386,13 @@ function processElements(socketUpdate, timestampModeUpdate) {
 					if (_.isUndefined(value) || value === '') {
 						updateCell(cell, element, 0);
 						cell.expanded = '0';
+						cell.lastUpdated = data.timestamp;
 					} else {
 						value = window.parser.parse(value.replace('=', ''), cell.id);
 						if (_.isString(value) && /ERROR/ig.test(value)) {
 							updateCell(cell, element, value);
 						} else {
+							cell.lastUpdated = data.timestamp;
 							cell.dispose = calculate(value, pushers)
 								.onValue(function (result) {
 									if (!_.isNumber(result)) {
@@ -365,6 +417,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 				}
 			});
 
+		//subscribe to cells focus event
 		element.asEventStream('focus')
 			.onValue(function (event) {
 				var elementid = event.target.id;
@@ -373,6 +426,8 @@ function processElements(socketUpdate, timestampModeUpdate) {
 				element.val(value);
 			});
 
+		//1.subscribe to cells blur event
+		//2.send data to server.
 		element.asEventStream('blur')
 			.map(function (event) {
 				var elementid = event.target.id;
@@ -396,10 +451,14 @@ function processElements(socketUpdate, timestampModeUpdate) {
 	spreadSheet.addCells(cells);
 	window.parser.setSpreadSheet(spreadSheet);
 
+  //subscribe to socket update events
 	socketUpdate.onValue(function (data) {
 		console.log('update:', data);
 	});
 
+	//1.Get timestampMode checkbox.
+	//2.Subscribe to event stream.
+	//3.Send status to server.
 	var timestampMode = $('#timestampMode');
 	timestampMode
 		.asEventStream('click')
@@ -414,6 +473,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 			});
 		});
 
+  //subscribe to timestamp mode update events
 	timestampModeUpdate.onValue(function (data) {
 		var mode = data.timestampMode;
 		spreadSheet.browserTimestamp = mode;
@@ -426,6 +486,11 @@ var userId;
 var socket = io(); //io.connect('http://localhost:5000');
 /* eslint-enable */
 
+// 1. Connects to the server.
+// 2. Get userid from server.
+// 3. Create custom stream for socket update event.
+// 4. Create custom stream for timestamp mode event.
+// 5. Call processElements to start spreadsheet app.
 socket.on('connect', function (data) {
 	window.parser.setSocket(socket); //need it for logging
 
@@ -447,5 +512,6 @@ socket.on('connect', function (data) {
 		});
 	});
 
+	//pass custom streams
 	processElements(socketUpdate, timestampModeUpdate);
 });

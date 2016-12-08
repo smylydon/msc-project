@@ -8,12 +8,12 @@ window.parser = (function () {
 	var tokenRegEx = /([A-Z]([1-9]\d+|[1-9])|\d+(\.\d+)?|[+\-\/\*\^]|\(|\))/ig;
 
 	/*
-	 * tokenize
-	 *
+	 * @function tokenize
+	 * @description
 	 * Uses the tokenRegEx to scan for valid input such as A1 or -100.20.
 	 *
-	 * param {String} text rep of function
-	 * returns {Array} array of tokens
+	 * @param {String} text rep of function
+	 * @returns {Array} array of tokens
 	 */
 	function tokenize(value) {
 		var results = [];
@@ -26,35 +26,35 @@ window.parser = (function () {
 	}
 
 	/*
-	 * peek
-	 *
+	 * @function peek
+	 * @description
 	 * Returns the token at the head of the list.
 	 *
-	 * returns {String} token
+	 * @returns {String} token
 	 */
 	function peek() {
 		return tokens[0];
 	}
 
 	/*
-	 * next
-	 *
+	 * @function next
+	 * @description
 	 * Pulls the token at the head of the list.
 	 *
-	 * returns {String} token
+	 * @returns {String} token
 	 */
 	function next() {
 		return tokens.shift();
 	}
 
 	/*
-	 * createToken
-	 *
+	 * @function createToken
+	 * @description
 	 * Pulls the token at the head of the list.
 	 *
-	 * param {String} token
-	 * param {String} token type
-	 * returns {Object} token object
+	 * @param {String} token
+	 * @param {String} token type
+	 * @returns {Object} token object
 	 */
 	function createToken(value, type) {
 		next();
@@ -65,11 +65,11 @@ window.parser = (function () {
 	}
 
 	/*
-	 * parsePrimary
-	 *
+	 * @function parsePrimary
+	 * @description
 	 * Pulls the token at the head of the list.
 	 *
-	 * returns {Object} token object
+	 * @returns {Object} token object
 	 */
 	function parsePrimary() {
 		var result = {};
@@ -97,13 +97,13 @@ window.parser = (function () {
 	}
 
 	/*
-	 * processOperator
-	 *
+	 * @function processOperator
+	 * @description
 	 * Pulls the token at the head of the list.
 	 *
-	 * param {Function} condition check
-	 * param {Function} operation with higher precedence
-	 * returns {Object} token object
+	 * @param {Function} condition check
+	 * @param {Function} operation with higher precedence
+	 * @returns {Object} token object
 	 */
 	function processOperator(condition, expressionCallback) {
 		var expression = expressionCallback();
@@ -123,11 +123,11 @@ window.parser = (function () {
 	}
 
 	/*
-	 * parseExponent
-	 *
+	 * @function parseExponent
+	 * @description
 	 * Process exponents
 	 *
-	 * returns {Object} token object
+	 * @returns {Object} token object
 	 */
 	function parseExponents() {
 		return processOperator(function (token) {
@@ -136,11 +136,11 @@ window.parser = (function () {
 	}
 
 	/*
-	 * parseMultiplicationDivision
-	 *
+	 * @function parseMultiplicationDivision
+	 * @description
 	 * Process multiplication and division.
 	 *
-	 * returns {Object} token object
+	 * @returns {Object} token object
 	 */
 	function parseMultiplicationDivision() {
 		return processOperator(function (token) {
@@ -149,11 +149,11 @@ window.parser = (function () {
 	}
 
 	/*
-	 * parseAdditionSubtraction
-	 *
+	 * @function parseAdditionSubtraction
+	 * @description
 	 * Process addition or subtraction
 	 *
-	 * returns {Object} token object
+	 * @returns {Object} token object
 	 */
 	function parseAdditionSubtraction() {
 		return processOperator(function (token) {
@@ -204,14 +204,14 @@ window.parser = (function () {
 	}
 
 	/*
-	 * expandSumAndMean
-	 *
+	 * @function expandSumAndMean
+	 * @description
 	 * This function expands sum and mean into a longform
 	 * equivalent. Example:
 	 *
 	 * mean(a1:a5) => (a1+a2+a3+a4+a5)/5
 	 *
-	 * param {String} text rep of function
+	 * @param {String} text rep of function
 	 */
 	function expandSumAndMean(value) {
 		var cells = value.replace(/(sum|avg|mean|[\(\)]+)/ig, '')
@@ -257,8 +257,8 @@ window.parser = (function () {
 	}
 
 	/*
-	 * expandCells
-	 *
+	 * @function expandCells
+	 * @description
 	 * Recursively removes transitive relationships.
 	 *
 	 * Example:
@@ -269,7 +269,7 @@ window.parser = (function () {
 	 *
 	 * Added code to check for circular dependencies.
 	 *
-	 * param {String} user input
+	 * @param {String} user input
 	 */
 	function expandCells(visitedCells, label) {
 		var cell = spreadSheet.getCellById(label);
@@ -294,6 +294,15 @@ window.parser = (function () {
 		return label;
 	}
 
+	/*
+	 * @function parse
+	 * @description
+	 * Process user input.
+	 *
+	 * @returns {String} user input
+	 * @params {String} cell id
+	 * @returns {String} parsed user input
+	 */
 	function parse(value, label) {
 		value = value || '';
 		value = value.replace(functionRegex, expandSumAndMean);
