@@ -19,24 +19,27 @@ export default function (server) {
 	var connections = Bacon.fromBinder(function (sink) {
 		io.on('connect', sink);
 	});
+	var factor = 60000;
 
+	function getTimestamp() {
+		return Math.round((new Date()).getTime() / factor) * factor;
+	}
 	var messages = connections.flatMap(function (client) {
 		return Bacon.fromBinder(function (sink) {
 			client.on('join', function (data) {
-				var timestamep = (new Date())
+				var timestamp = (new Date())
 					.getTime();
-				client.emit('userid', timestamep);
+				client.emit('userid', timestamp);
 				sink({
 					type: 'join',
-					data: timestamep
+					data: timestamp
 				});
 			});
 
 			client.on('write', function (data) {
 				data.type = "update";
 				if (!data.browserTimestamp) {
-					data.timestamp = (new Date())
-						.getTime();
+					data.timestamp = getTimestamp();
 				}
 				io.emit('update', data);
 				sink({

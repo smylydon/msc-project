@@ -52,7 +52,6 @@
     "helmet": "^2.1.1",
     "main-bower-files": "^2.13.1",
     "mkdirp": "^0.5.1",
-    "redis": "^2.6.2",
     "serve-favicon": "^2.3.0",
     "socket.io": "^1.4.8",
     "vinyl-fs": "^2.4.3",

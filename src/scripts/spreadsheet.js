@@ -332,7 +332,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 		return value;
 	}
 
-	function updateCell(cell, element, value) {
+	function updateCell(cell, element, value, timestamp) {
 		cell.value = value;
 		if (element.is(':focus')) {
 			element.val(cell.formula);
@@ -340,8 +340,15 @@ function processElements(socketUpdate, timestampModeUpdate) {
 			element.val(cell.value);
 		}
 		localStorage[cell.id] = cell.formula;
+		cell.lastUpdated = timestamp;
 		log(cell, 'success', 'brower cell update');
 		cell.pusher('self');
+	}
+
+	var factor = 60000;
+
+	function getTimestamp() {
+		return Math.round((new Date()).getTime() / factor) * factor;
 	}
 
 	function log(cell, result, action) {
@@ -375,8 +382,10 @@ function processElements(socketUpdate, timestampModeUpdate) {
 				var cell = spreadSheet.getCellById(data.element);
 				var value = data.formula.toUpperCase();
 				var cellId = cell.id;
+				var timestamp = data.timestamp;
+				var count = 0;
 				console.log('lastUpdated:', cell.lastUpdated);
-				if (data.timestamp > cell.lastUpdated) {
+				if (timestamp > cell.lastUpdated) {
 					pushers = [];
 					cell.formula = value;
 					if (cell.dispose) {
@@ -384,21 +393,21 @@ function processElements(socketUpdate, timestampModeUpdate) {
 					}
 					cell.dispose = null;
 					if (_.isUndefined(value) || value === '') {
-						updateCell(cell, element, 0);
+						updateCell(cell, element, 0, timestamp);
 						cell.expanded = '0';
-						cell.lastUpdated = data.timestamp;
 					} else {
 						value = window.parser.parse(value.replace('=', ''), cell.id);
 						if (_.isString(value) && /ERROR/ig.test(value)) {
 							updateCell(cell, element, value);
 						} else {
-							cell.lastUpdated = data.timestamp;
 							cell.dispose = calculate(value, pushers)
 								.onValue(function (result) {
 									if (!_.isNumber(result)) {
 										var pusherId = _.trim(result.pusher_id);
 										if (/^(self|const)$/ig.test(pusherId) || pusherId === cellId) {
-											updateCell(cell, element, result.value);
+											timestamp = count > 0 ? (new Date()).getTime(): timestamp;
+											count++;
+											updateCell(cell, element, result.value, timestamp);
 										}
 									}
 								});
@@ -439,8 +448,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 					formula: formula,
 					user_id: userId,
 					browserTimestamp: browserTimestamp,
-					timestamp: browserTimestamp ? (new Date())
-						.getTime() : 0
+					timestamp: browserTimestamp ? getTimestamp() : 0
 				};
 			})
 			.onValue(function (data) {
@@ -451,7 +459,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 	spreadSheet.addCells(cells);
 	window.parser.setSpreadSheet(spreadSheet);
 
-  //subscribe to socket update events
+	//subscribe to socket update events
 	socketUpdate.onValue(function (data) {
 		console.log('update:', data);
 	});
@@ -473,7 +481,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 			});
 		});
 
-  //subscribe to timestamp mode update events
+	//subscribe to timestamp mode update events
 	timestampModeUpdate.onValue(function (data) {
 		var mode = data.timestampMode;
 		spreadSheet.browserTimestamp = mode;
