@@ -17,9 +17,10 @@ var CellFactory = (function () {
 		this.id = data.id;
 		this.element = data.element;
 		this.value = 0;
+		this.formula = '';
 		this.expanded = '0';
 		this.lastUpdated = 0;
-		this.dispose = null;
+		this.dispose = () => {};
 		this.bus = new Bacon.Bus();
 	}
 
@@ -191,8 +192,9 @@ function processPusherId(value, a, b) {
 		obj.pusher_id = 'const';
 	} else if (_.isNull(pusherId1) || pusherId2 === 'const') {
 		obj.pusher_id = 'const';
+	} else if (pusherId1 === pusherId2) {
+		obj.pusher_id = pusherId1;
 	}
-
 	return obj;
 }
 
@@ -333,36 +335,45 @@ function processElements(socketUpdate, timestampModeUpdate) {
 		return value;
 	}
 
-	function updateCell(cell, element, value, timestamp) {
-		cell.value = value;
+	function updateCell(setter) {
+		var cell = setter.cell;
+		var element = setter.element;
+
+		cell.value = setter.value;
 		if (element.is(':focus')) {
 			element.val(cell.formula);
 		} else {
 			element.val(cell.value);
 		}
 		localStorage[cell.id] = cell.formula;
-		cell.lastUpdated = timestamp;
-		log(cell, 'success', 'brower cell update');
+		cell.lastUpdated = setter.timestamp;
+		log({
+			cell: cell,
+			update: 'success',
+			action: 'brower cell update',
+			transaction_id: setter.transaction_id
+		});
 		cell.pusher('self');
 	}
 
-	var factor = 60000;
-
-	function getTimestamp() {
-		return Math.round((new Date()).getTime() / factor) * factor;
+	function getTimestamp(factor) {
+		factor = factor || 60000;
+		return Math.round((new Date())
+			.getTime() / factor) * factor;
 	}
 
-	function log(cell, result, action) {
-		action = action || 'update';
+	function log(setter) {
+		var cell = setter.cell;
+		var action = setter.action || 'update';
 		var obj = {
 			id: cell.id,
 			formula: cell.formula,
 			value: cell.value,
 			user_id: userId,
-			update: result,
-			action: action
+			update: setter.update,
+			action: action,
+			transaction_id: setter.transaction_id
 		};
-		console.log(obj);
 		socket.emit('log', obj);
 	}
 
@@ -385,30 +396,49 @@ function processElements(socketUpdate, timestampModeUpdate) {
 				var cellId = cell.id;
 				var timestamp = data.timestamp;
 				var count = 0;
-				console.log('lastUpdated:', cell.lastUpdated);
+
 				if (timestamp > cell.lastUpdated) {
 					pushers = [];
 					cell.formula = value;
-					if (cell.dispose) {
-						cell.dispose();
-					}
-					cell.dispose = null;
+					cell.dispose();
+					cell.dispose = () => {};
 					if (_.isUndefined(value) || value === '') {
-						updateCell(cell, element, 0, timestamp);
+						updateCell({
+							cell: cell,
+							element: element,
+							value: 0,
+							transaction_id: data.transaction_id,
+							timestamp: timestamp
+						});
 						cell.expanded = '0';
 					} else {
 						value = window.parser.parse(value.replace('=', ''), cell.id);
 						if (_.isString(value) && /ERROR/ig.test(value)) {
-							updateCell(cell, element, value);
+							//updateCell(cell, element, value);
+							updateCell({
+								cell: cell,
+								element: element,
+								value: value,
+								transaction_id: data.transaction_id,
+								timestamp: timestamp
+							});
 						} else {
 							cell.dispose = calculate(value, pushers)
 								.onValue(function (result) {
 									if (!_.isNumber(result)) {
 										var pusherId = _.trim(result.pusher_id);
 										if (/^(self|const)$/ig.test(pusherId) || pusherId === cellId) {
-											timestamp = count > 0 ? (new Date()).getTime(): timestamp;
+											timestamp = count > 0 ? (new Date())
+												.getTime() : timestamp;
 											count++;
-											updateCell(cell, element, result.value, timestamp);
+											//updateCell(cell, element, result.value, timestamp);
+											updateCell({
+												cell: cell,
+												element: element,
+												value: result.value,
+												transaction_id: data.transaction_id,
+												timestamp: timestamp
+											});
 										}
 									}
 								});
@@ -423,7 +453,12 @@ function processElements(socketUpdate, timestampModeUpdate) {
 						}
 					}
 				} else {
-					log(cell, 'fail', 'brower cell update');
+					log({
+						cell: cell,
+						update: 'fail',
+						action: 'brower cell update',
+						transaction_id: data.transaction_id
+					});
 				}
 			});
 
@@ -432,7 +467,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 			.onValue(function (event) {
 				var elementid = event.target.id;
 				var cell = spreadSheet.getCellById(elementid);
-				var value = cell.formula;
+				var value = cell.formula || '';
 				element.val(value);
 			});
 
@@ -443,7 +478,8 @@ function processElements(socketUpdate, timestampModeUpdate) {
 				var elementid = event.target.id;
 				var formula = event.target.value;
 				var browserTimestamp = spreadSheet.browserTimestamp;
-
+				var cell = spreadSheet.getCellById(elementid);
+				element.val(cell.value || 0);
 				return {
 					element: elementid,
 					formula: formula,
@@ -462,7 +498,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 
 	//subscribe to socket update events
 	socketUpdate.onValue(function (data) {
-		console.log('update:', data);
+		//console.log('update:', data);
 	});
 
 	//1.Get timestampMode checkbox.
