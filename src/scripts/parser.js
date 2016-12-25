@@ -260,6 +260,7 @@ window.parser = (function () {
 	 * @function expandCells
 	 * @description
 	 * Recursively removes transitive relationships.
+	 * Also checks for circular references.
 	 *
 	 * Example:
 	 * A1 = 1

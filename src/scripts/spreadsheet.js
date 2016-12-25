@@ -176,6 +176,24 @@ function drawSpreadSheet(width, height) {
 
 drawSpreadSheet(10, 10);
 
+var granularity = 60000;
+
+/*
+ * @function getTimestamp
+ * @description
+ * Takes a factor that determines the granularity of the generated
+ * timestamp. The default is 60000 milliseconds
+ *
+ * @param {Number} timestampe granularity in milliseconds
+ * @return {Number} timestamp
+ */
+function getTimestamp(factor) {
+	factor = factor || granularity;
+	factor = factor > 0 ? factor : 1;
+	return Math.round((new Date())
+		.getTime() / factor) * factor;
+}
+
 var INPUTS = $('.spreadsheet-cell'); //get all inputs
 var cells = [];
 
@@ -205,7 +223,7 @@ function processPusherId(value, a, b) {
  * @param {Object} timestampModeUpdate stream
  * @return void
  */
-function processElements(socketUpdate, timestampModeUpdate) {
+function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpdate) {
 	function add(a, b) {
 		return processPusherId(a.value + b.value, a, b);
 	}
@@ -281,6 +299,7 @@ function processElements(socketUpdate, timestampModeUpdate) {
 	/*
 	 * @function calculate
 	 * @description
+	 * Recursive function that creates a reactive relations given a token.
 	 *
 	 *
 	 * @param {Object} a token
@@ -356,12 +375,14 @@ function processElements(socketUpdate, timestampModeUpdate) {
 		cell.pusher('self');
 	}
 
-	function getTimestamp(factor) {
-		factor = factor || 60000;
-		return Math.round((new Date())
-			.getTime() / factor) * factor;
-	}
-
+	/*
+	 * @function log
+	 * @description
+	 * Send log to server to be save in database.
+	 *
+	 * @param {Object} a setter object containing data on update
+	 * @return void
+	 */
 	function log(setter) {
 		var cell = setter.cell;
 		var action = setter.action || 'update';
@@ -396,32 +417,28 @@ function processElements(socketUpdate, timestampModeUpdate) {
 				var cellId = cell.id;
 				var timestamp = data.timestamp;
 				var count = 0;
+				var performUpdate = function (value) {
+					updateCell({
+						cell: cell,
+						element: element,
+						value: value,
+						transaction_id: data.transaction_id,
+						timestamp: timestamp
+					});
+				};
 
 				if (timestamp > cell.lastUpdated) {
 					pushers = [];
 					cell.formula = value;
-					cell.dispose();
-					cell.dispose = () => {};
+					cell.dispose(); //dispose last frp relation
+					cell.dispose = () => {}; //noOp
 					if (_.isUndefined(value) || value === '') {
-						updateCell({
-							cell: cell,
-							element: element,
-							value: 0,
-							transaction_id: data.transaction_id,
-							timestamp: timestamp
-						});
+						performUpdate(0);
 						cell.expanded = '0';
 					} else {
 						value = window.parser.parse(value.replace('=', ''), cell.id);
 						if (_.isString(value) && /ERROR/ig.test(value)) {
-							//updateCell(cell, element, value);
-							updateCell({
-								cell: cell,
-								element: element,
-								value: value,
-								transaction_id: data.transaction_id,
-								timestamp: timestamp
-							});
+							performUpdate(value);
 						} else {
 							cell.dispose = calculate(value, pushers)
 								.onValue(function (result) {
@@ -431,18 +448,14 @@ function processElements(socketUpdate, timestampModeUpdate) {
 											timestamp = count > 0 ? (new Date())
 												.getTime() : timestamp;
 											count++;
-											//updateCell(cell, element, result.value, timestamp);
-											updateCell({
-												cell: cell,
-												element: element,
-												value: result.value,
-												transaction_id: data.transaction_id,
-												timestamp: timestamp
-											});
+											performUpdate(result.value);
 										}
 									}
 								});
 
+							//calulate initial value of cell
+							//by manually pushing the values of
+							//dependent cells.
 							_(pushers)
 								.uniqBy(function (aCell) {
 									return aCell.id;
@@ -450,6 +463,9 @@ function processElements(socketUpdate, timestampModeUpdate) {
 								.forEach(function (aCell) {
 									aCell.pusher(cellId);
 								});
+
+							//empty array of all cells
+							pushers.length = 0;
 						}
 					}
 				} else {
@@ -495,12 +511,13 @@ function processElements(socketUpdate, timestampModeUpdate) {
 
 	spreadSheet.addCells(cells);
 	window.parser.setSpreadSheet(spreadSheet);
-
 	//subscribe to socket update events
 	socketUpdate.onValue(function (data) {
 		//console.log('update:', data);
 	});
+}
 
+function subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate) {
 	//1.Get timestampMode checkbox.
 	//2.Subscribe to event stream.
 	//3.Send status to server.
@@ -524,12 +541,59 @@ function processElements(socketUpdate, timestampModeUpdate) {
 		spreadSheet.browserTimestamp = mode;
 		timestampMode.prop("checked", mode);
 	});
+
+	function calculateInterval(data) {
+		var test = parseInt(data, 10);
+
+		if (_.isNumber(test) && _.isFinite(test)) {
+			test = Math.max(test, 1);
+			test = Math.min(test, 120000);
+		} else {
+			test = 0;
+		}
+		return test;
+	}
+
+	//1.Get timestampInterval.
+	//2.Subscribe to event stream.
+	//3.Send status to server.
+	var timestampInterval = $('#timestampInterval');
+	timestampInterval
+		.asEventStream('blur')
+		.map(function (event) {
+			return event.currentTarget.value;
+		})
+		.onValue(function (data) {
+			var value = calculateInterval(data);
+			if (value) {
+				socket.emit('timestampInterval', {
+					timestampInterval: value
+				});
+				granularity = value;
+			}
+			timestampInterval.val(granularity);
+		});
+
+	//subscribe to timestampgranularity update events
+	timestampIntervalUpdate.onValue(function (data) {
+		var value = calculateInterval(data.timestampInterval);
+		granularity = value ? value : granularity;
+		timestampInterval.val(granularity);
+	});
 }
 
 var userId;
 /* eslint-disable */
 var socket = io(); //io.connect('http://localhost:5000');
 /* eslint-enable */
+
+function fromBinderStream(eventName) {
+	return Bacon.fromBinder(function (sink) {
+		socket.on(eventName, function (data) {
+			sink(data);
+		});
+	});
+}
 
 // 1. Connects to the server.
 // 2. Get userid from server.
@@ -545,18 +609,11 @@ socket.on('connect', function (data) {
 		userId = data;
 	});
 
-	var socketUpdate = Bacon.fromBinder(function (sink) {
-		socket.on('update', function (data) {
-			sink(data);
-		});
-	});
-
-	var timestampModeUpdate = Bacon.fromBinder(function (sink) {
-		socket.on('timestampMode', function (data) {
-			sink(data);
-		});
-	});
+	var socketUpdate = fromBinderStream('update');
+	var timestampModeUpdate = fromBinderStream('timestampMode');
+	var timestampIntervalUpdate = fromBinderStream('timestampInterval');
 
 	//pass custom streams
-	processElements(socketUpdate, timestampModeUpdate);
+	processElements(socketUpdate);
+	subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate);
 });

@@ -1,5 +1,6 @@
 'use strict';
 
+import _ from 'lodash';
 import socket from 'socket.io';
 //import redis from 'redis';
 import bacon from 'baconjs';
@@ -19,9 +20,10 @@ export default function (server) {
 	var connections = Bacon.fromBinder(function (sink) {
 		io.on('connect', sink);
 	});
-
+	var granularity = 60000;
 	function getTimestamp(factor) {
-		factor = factor || 60000;
+		factor = factor || granularity;
+		factor = factor > 0 ? factor : 1;
 		return Math.round((new Date())
 			.getTime() / factor) * factor;
 	}
@@ -66,6 +68,25 @@ export default function (server) {
 				});
 			});
 
+			client.on('timestampInterval', function (data) {
+				var test = parseInt(data.timestampInterval, 10);
+
+				if (_.isNumber(test) && _.isFinite(test)) {
+					test = Math.max(test, 1);
+					test = Math.min(test, 120000);
+				} else {
+					test = granularity;
+				}
+				granularity = test;
+				data.timestampInterval = granularity;
+
+				io.emit('timestampInterval', data);
+				data.transaction_id = getTimestamp(1);
+				sink({
+					type: 'timestampInterval',
+					data: data
+				});
+			});
 		});
 	});
 
