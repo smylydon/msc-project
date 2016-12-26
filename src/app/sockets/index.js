@@ -2,7 +2,6 @@
 
 import _ from 'lodash';
 import socket from 'socket.io';
-//import redis from 'redis';
 import bacon from 'baconjs';
 //import logger from '../helpers/logger';
 
@@ -10,12 +9,7 @@ import bacon from 'baconjs';
 export default function (server) {
 	const Bacon = bacon.Bacon;
 	const io = socket(server);
-	//const redisClient = redis.createClient();
-	/*
-		redisClient.on('connect', function (error, value) {
-			logger.info('connected to redis');
-		});
-	*/
+
 	// set basic routes
 	var connections = Bacon.fromBinder(function (sink) {
 		io.on('connect', sink);

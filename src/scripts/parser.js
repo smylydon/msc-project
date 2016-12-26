@@ -7,7 +7,7 @@ window.parser = (function () {
 	var tokens = [];
 	var tokenRegEx = /([A-Z]([1-9]\d+|[1-9])|\d+(\.\d+)?|[+\-\/\*\^]|\(|\))/ig;
 
-	/*
+	/**
 	 * @function tokenize
 	 * @description
 	 * Uses the tokenRegEx to scan for valid input such as A1 or -100.20.
@@ -25,7 +25,7 @@ window.parser = (function () {
 		return results;
 	}
 
-	/*
+	/**
 	 * @function peek
 	 * @description
 	 * Returns the token at the head of the list.
@@ -36,7 +36,7 @@ window.parser = (function () {
 		return tokens[0];
 	}
 
-	/*
+	/**
 	 * @function next
 	 * @description
 	 * Pulls the token at the head of the list.
@@ -47,7 +47,7 @@ window.parser = (function () {
 		return tokens.shift();
 	}
 
-	/*
+	/**
 	 * @function createToken
 	 * @description
 	 * Pulls the token at the head of the list.
@@ -64,7 +64,7 @@ window.parser = (function () {
 		};
 	}
 
-	/*
+	/**
 	 * @function parsePrimary
 	 * @description
 	 * Pulls the token at the head of the list.
@@ -96,7 +96,7 @@ window.parser = (function () {
 		return result;
 	}
 
-	/*
+	/**
 	 * @function processOperator
 	 * @description
 	 * Pulls the token at the head of the list.
@@ -122,7 +122,7 @@ window.parser = (function () {
 		return expression;
 	}
 
-	/*
+	/**
 	 * @function parseExponent
 	 * @description
 	 * Process exponents
@@ -135,7 +135,7 @@ window.parser = (function () {
 		}, parsePrimary);
 	}
 
-	/*
+	/**
 	 * @function parseMultiplicationDivision
 	 * @description
 	 * Process multiplication and division.
@@ -148,7 +148,7 @@ window.parser = (function () {
 		}, parseExponents);
 	}
 
-	/*
+	/**
 	 * @function parseAdditionSubtraction
 	 * @description
 	 * Process addition or subtraction
@@ -203,7 +203,7 @@ window.parser = (function () {
 		return string;
 	}
 
-	/*
+	/**
 	 * @function expandSumAndMean
 	 * @description
 	 * This function expands sum and mean into a longform
@@ -212,6 +212,7 @@ window.parser = (function () {
 	 * mean(a1:a5) => (a1+a2+a3+a4+a5)/5
 	 *
 	 * @param {String} text rep of function
+	 * @returns {String} series representing mean or sum.
 	 */
 	function expandSumAndMean(value) {
 		var cells = value.replace(/(sum|avg|mean|[\(\)]+)/ig, '')
@@ -256,7 +257,7 @@ window.parser = (function () {
 		setSocket(socket);
 	}
 
-	/*
+	/**
 	 * @function expandCells
 	 * @description
 	 * Recursively removes transitive relationships.
@@ -271,6 +272,7 @@ window.parser = (function () {
 	 * Added code to check for circular dependencies.
 	 *
 	 * @param {String} user input
+	 * @returns {String} expand string or error.
 	 */
 	function expandCells(visitedCells, label) {
 		var cell = spreadSheet.getCellById(label);
@@ -295,13 +297,12 @@ window.parser = (function () {
 		return label;
 	}
 
-	/*
+	/**
 	 * @function parse
 	 * @description
 	 * Process user input.
 	 *
-	 * @returns {String} user input
-	 * @params {String} cell id
+	 * @param {String} cell id
 	 * @returns {String} parsed user input
 	 */
 	function parse(value, label) {

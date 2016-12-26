@@ -8,7 +8,7 @@ var io = io;
  * CellFactory
  */
 var CellFactory = (function () {
-	/*
+	/**
 	 * @Constructor
 	 *
 	 * @param {Object} json object containing cell data
@@ -24,7 +24,7 @@ var CellFactory = (function () {
 		this.bus = new Bacon.Bus();
 	}
 
-	/*
+	/**
 	 * @method pusher
 	 * @description
 	 * Pushes the current value to all subscribers.
@@ -47,7 +47,7 @@ var CellFactory = (function () {
  * SpreadSheetFactory
  */
 var SpreadSheetFactory = (function () {
-	/*
+	/**
 	 * @Constructor
 	 *
 	 * @param {Array} optional array containing cell data.
@@ -58,7 +58,7 @@ var SpreadSheetFactory = (function () {
 		this.browserTimestamp = false;
 	}
 
-	/*
+	/**
 	 * @method getCellById
 	 * @description
 	 * Returns the the first cell taht match the id
@@ -73,7 +73,7 @@ var SpreadSheetFactory = (function () {
 		});
 	};
 
-	/*
+	/**
 	 * @method addCells
 	 * @description
 	 * Accepts an array of json objects. A collection of
@@ -89,7 +89,7 @@ var SpreadSheetFactory = (function () {
 		Array.prototype.push.apply(this.cells, cells);
 	};
 
-	/*
+	/**
 	 * @method addCell
 	 * @description
 	 * Accepts a json objects. Creates a cell object and
@@ -101,7 +101,7 @@ var SpreadSheetFactory = (function () {
 		this.cells.push(CellFactory.getNewCell(data));
 	};
 
-	/*
+	/**
 	 * @method removeCellsById
 	 * @description
 	 * Accepts a list of cell ids. Cells matching each
@@ -118,7 +118,7 @@ var SpreadSheetFactory = (function () {
 		});
 	};
 
-	/*
+	/**
 	 * @method removeCellById
 	 * @description
 	 * Accepts an id of a cell that needs to be removed.
@@ -150,7 +150,7 @@ function contrainValue(value, min, max) {
 	return value;
 }
 
-/*
+/**
  * @function drawSpreadSheet
  *
  * @param {int} width
@@ -178,7 +178,7 @@ drawSpreadSheet(10, 10);
 
 var granularity = 60000;
 
-/*
+/**
  * @function getTimestamp
  * @description
  * Takes a factor that determines the granularity of the generated
@@ -216,7 +216,7 @@ function processPusherId(value, a, b) {
 	return obj;
 }
 
-/*
+/**
  * @function processElements
  *
  * @param {Object} socketUpdate stream
@@ -236,7 +236,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		return processPusherId(a.value * b.value, a, b);
 	}
 
-	/*
+	/**
 	 * @function divide
 	 * @description
 	 * Divides a by b. Checks for division by zero.
@@ -259,7 +259,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		return processPusherId(Math.pow(a.value, b.value), a, b);
 	}
 
-	/*
+	/**
 	 * @function fetchAndCombine
 	 * @description
 	 *
@@ -281,7 +281,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		return left.combine(right, combiner);
 	}
 
-	/*
+	/**
 	 * @function createConstant
 	 * @description
 	 * Accepts a number and returns a Bacon property.
@@ -296,7 +296,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		});
 	}
 
-	/*
+	/**
 	 * @function calculate
 	 * @description
 	 * Recursive function that creates a reactive relations given a token.
@@ -375,7 +375,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		cell.pusher('self');
 	}
 
-	/*
+	/**
 	 * @function log
 	 * @description
 	 * Send log to server to be save in database.
