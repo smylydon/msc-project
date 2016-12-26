@@ -20,7 +20,7 @@ var CellFactory = (function () {
 		this.formula = '';
 		this.expanded = '0';
 		this.lastUpdated = 0;
-		this.dispose = () => {};
+		this.dispose = function(){};
 		this.bus = new Bacon.Bus();
 	}
 
@@ -85,7 +85,7 @@ var SpreadSheetFactory = (function () {
 	 */
 	SpreadSheet.prototype.addCells = function (cells) {
 		cells = _.isArray(cells) ? cells : [];
-		cells = cells.map((data) => CellFactory.getNewCell(data));
+		cells = cells.map(function(data) { return CellFactory.getNewCell(data); });
 		Array.prototype.push.apply(this.cells, cells);
 	};
 
@@ -128,7 +128,7 @@ var SpreadSheetFactory = (function () {
 	 * @param {String} id the id of the cell to be removed
 	 */
 	SpreadSheet.prototype.removeCellById = function (id) {
-		_.remove(this.cells, (cell) => cell.id === id);
+		_.remove(this.cells,function (cell) { return cell.id === id;});
 	};
 
 	return {
@@ -431,7 +431,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 					pushers = [];
 					cell.formula = value;
 					cell.dispose(); //dispose last frp relation
-					cell.dispose = () => {}; //noOp
+					cell.dispose = function(){}; //noOp
 					if (_.isUndefined(value) || value === '') {
 						performUpdate(0);
 						cell.expanded = '0';
