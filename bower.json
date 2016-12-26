@@ -8,15 +8,15 @@
     "components"
   ],
   "dependencies": {
-    "jquery": "^2.2.2",
-    "bacon": "^0.7.85",
-    "socket.io-client": "^1.4.8",
-    "lodash": "^4.15.0"
+    "jquery": "2.2.4",
+    "bacon": "0.7.89",
+    "socket.io-client": "1.7.2",
+    "lodash": "4.17.1"
   },
   "overrides": {
     "socket.io-client": {
       "main": [
-        "socket.io.js"
+        "./dist/socket.io.js"
       ]
     }
   }
