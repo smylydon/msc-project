@@ -3,6 +3,8 @@
 import _ from 'lodash';
 import socket from 'socket.io';
 import bacon from 'baconjs';
+import CellFactory from '../models/cellFactory';
+import SpreadSheetFactory from '../models/spreadSheetFactory';
 //import logger from '../helpers/logger';
 
 // export sockets
@@ -14,7 +16,12 @@ export default function (server) {
 	var connections = Bacon.fromBinder(function (sink) {
 		io.on('connect', sink);
 	});
+
+	var spreadSheet = null;
+	var height = 10;
+	var width = 10;
 	var granularity = 60000;
+
 	function getTimestamp(factor) {
 		factor = factor || granularity;
 		factor = factor > 0 ? factor : 1;
@@ -22,14 +29,39 @@ export default function (server) {
 			.getTime() / factor) * factor;
 	}
 
+	function newSpreadSheet() {
+		var cells = [];
+		for (let i = 1; i < height; i++) {
+			for (let j = 1; j < width; j++) {
+				let cellName = String.fromCharCode("A".charCodeAt(0) + j - 1) + i;
+				let cell = CellFactory.getNewCell({
+					id: cellName
+				});
+				cells.push(cell);
+			}
+		}
+		return SpreadSheetFactory.getSpreadSheet(cells);
+	}
+
 	var messages = connections.flatMap(function (client) {
 		return Bacon.fromBinder(function (sink) {
 			client.on('join', function (data) {
-				client.emit('userid', client.id);
+				var userid = {
+					userid: client.id,
+					cells: null,
+					transaction_id: getTimestamp(1),
+					height: height,
+					width: width
+				};
+				if (io.engine.clientsCount === 1 || !spreadSheet) {
+					spreadSheet = newSpreadSheet();
+				}
+				userid.cells = spreadSheet.getCells();
+				client.emit('userid', userid);
 				sink({
 					type: 'join',
 					data: client.id,
-					transaction_id: getTimestamp(1)
+					transaction_id: userid.transaction_id
 				});
 			});
 
@@ -89,23 +121,23 @@ export default function (server) {
 			return [label, value];
 		};
 	}
-	/*
-			function logMessages(value) {
-				var label = 'message';
-				var type = value.type;
+/*
+	function logMessages(value) {
+		var label = 'message';
+		var type = value.type;
 
-				switch (type) {
-				case 'join':
-					label = type + value.data;
-					break;
-				case 'update':
-				case 'write':
-					label = 'update' + value.data.user_id + '_' + value.data.element;
-					break;
-				}
-				return label;
-			}
-	*/
+		switch (type) {
+		case 'join':
+			label = type + value.data;
+			break;
+		case 'update':
+		case 'write':
+			label = 'update' + value.data.user_id + '_' + value.data.element;
+			break;
+		}
+		return label;
+	}
+*/
 	Bacon.mergeAll(
 			connections.map(function (value) {
 				return tag('connect' + value.id);
@@ -115,16 +147,12 @@ export default function (server) {
 		.onValues(function (label, value) {
 			if (label) {
 				//logger.info( label, value);
-				console.log(label, value);
-				/*
 				if (/connect/i.test(label)) {
-					redisClient.set(label, label.replace('connect',''));
-					redisClient.expire(label, 86400);
+					console.log(label, value);
 				} else if (label === 'message') {
-					label = logMessages(value);
-					redisClient.set(label, JSON.stringify(value));
-					redisClient.expire(label, 3600);
-				}*/
+					//label = logMessages(value);
+					console.log('logMessages:', label, value);
+				}
 			}
 		});
 }

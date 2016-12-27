@@ -20,7 +20,7 @@ var CellFactory = (function () {
 		this.formula = '';
 		this.expanded = '0';
 		this.lastUpdated = 0;
-		this.dispose = function(){};
+		this.dispose = function () {};
 		this.bus = new Bacon.Bus();
 	}
 
@@ -85,7 +85,9 @@ var SpreadSheetFactory = (function () {
 	 */
 	SpreadSheet.prototype.addCells = function (cells) {
 		cells = _.isArray(cells) ? cells : [];
-		cells = cells.map(function(data) { return CellFactory.getNewCell(data); });
+		cells = cells.map(function (data) {
+			return CellFactory.getNewCell(data);
+		});
 		Array.prototype.push.apply(this.cells, cells);
 	};
 
@@ -128,7 +130,9 @@ var SpreadSheetFactory = (function () {
 	 * @param {String} id the id of the cell to be removed
 	 */
 	SpreadSheet.prototype.removeCellById = function (id) {
-		_.remove(this.cells,function (cell) { return cell.id === id;});
+		_.remove(this.cells, function (cell) {
+			return cell.id === id;
+		});
 	};
 
 	return {
@@ -139,7 +143,7 @@ var SpreadSheetFactory = (function () {
 
 })();
 
-var spreadSheet = SpreadSheetFactory.getSpreadSheet();
+var spreadSheet = null;
 
 function contrainValue(value, min, max) {
 	min = min || 0;
@@ -161,6 +165,10 @@ function drawSpreadSheet(width, height) {
 	var table = document.querySelector("table");
 	width = contrainValue(width, 1, 27);
 	height = contrainValue(height, 1, 20);
+	
+	while (table.firstChild) {
+		table.removeChild(table.firstChild);
+	}
 
 	for (let i = 0; i < height; i++) {
 		let row = table.insertRow(-1);
@@ -173,8 +181,6 @@ function drawSpreadSheet(width, height) {
 		}
 	}
 }
-
-drawSpreadSheet(10, 10);
 
 var granularity = 60000;
 
@@ -194,7 +200,7 @@ function getTimestamp(factor) {
 		.getTime() / factor) * factor;
 }
 
-var INPUTS = $('.spreadsheet-cell'); //get all inputs
+var INPUTS = false;
 var cells = [];
 
 function processPusherId(value, a, b) {
@@ -431,7 +437,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 					pushers = [];
 					cell.formula = value;
 					cell.dispose(); //dispose last frp relation
-					cell.dispose = function(){}; //noOp
+					cell.dispose = function () {}; //noOp
 					if (_.isUndefined(value) || value === '') {
 						performUpdate(0);
 						cell.expanded = '0';
@@ -606,14 +612,35 @@ socket.on('connect', function (data) {
 	socket.emit('join', 'Hello World from client');
 
 	socket.on('userid', function (data) {
-		userId = data;
+		userId = data.userid;
+
+		drawSpreadSheet(parseInt(data.width), parseInt(data.height));
+		INPUTS = $('.spreadsheet-cell'); //get all inputs
+
+		spreadSheet = SpreadSheetFactory.getSpreadSheet();
+		var socketUpdate = fromBinderStream('update');
+		var timestampModeUpdate = fromBinderStream('timestampMode');
+		var timestampIntervalUpdate = fromBinderStream('timestampInterval');
+
+		//pass custom streams
+		processElements(socketUpdate);
+		subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate);
+		//console.log('data is:', data);
+		_.forEach(data.cells, function (serverCell) {
+			console.log('cell:', serverCell);
+			let cell = spreadSheet.getCellById(serverCell.id);
+			if (cell) {
+				cell.lastUpdated = serverCell.lastUpdated;
+				cell.formula = serverCell.formula;
+				cell.expanded = serverCell.expanded;
+				cell.value = serverCell.value;
+				let element = cell.element;
+				if (element.is(':focus') || cell.formula === "") {
+					element.val(cell.formula);
+				} else {
+					element.val(cell.value);
+				}
+			}
+		});
 	});
-
-	var socketUpdate = fromBinderStream('update');
-	var timestampModeUpdate = fromBinderStream('timestampMode');
-	var timestampIntervalUpdate = fromBinderStream('timestampInterval');
-
-	//pass custom streams
-	processElements(socketUpdate);
-	subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate);
 });
