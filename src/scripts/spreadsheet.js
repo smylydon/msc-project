@@ -165,7 +165,7 @@ function drawSpreadSheet(width, height) {
 	var table = document.querySelector("table");
 	width = contrainValue(width, 1, 27);
 	height = contrainValue(height, 1, 20);
-	
+
 	while (table.firstChild) {
 		table.removeChild(table.firstChild);
 	}
@@ -627,7 +627,6 @@ socket.on('connect', function (data) {
 		subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate);
 		//console.log('data is:', data);
 		_.forEach(data.cells, function (serverCell) {
-			console.log('cell:', serverCell);
 			let cell = spreadSheet.getCellById(serverCell.id);
 			if (cell) {
 				cell.lastUpdated = serverCell.lastUpdated;

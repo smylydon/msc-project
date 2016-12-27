@@ -121,23 +121,31 @@ export default function (server) {
 			return [label, value];
 		};
 	}
-/*
-	function logMessages(value) {
-		var label = 'message';
-		var type = value.type;
+	/*
+		function logMessages(value) {
+			var label = 'message';
+			var type = value.type;
 
-		switch (type) {
-		case 'join':
-			label = type + value.data;
-			break;
-		case 'update':
-		case 'write':
-			label = 'update' + value.data.user_id + '_' + value.data.element;
-			break;
+			switch (type) {
+			case 'join':
+				label = type + value.data;
+				break;
+			case 'update':
+			case 'write':
+				label = 'update' + value.data.user_id + '_' + value.data.element;
+				break;
+			}
+			return label;
 		}
-		return label;
+	*/
+	function updateCell(data) {
+		let cell = spreadSheet.getCellById(data.id);
+		if (cell) {
+			cell.value = data.value;
+			cell.formula = data.formula;
+		}
 	}
-*/
+
 	Bacon.mergeAll(
 			connections.map(function (value) {
 				return tag('connect' + value.id);
@@ -146,12 +154,15 @@ export default function (server) {
 		)
 		.onValues(function (label, value) {
 			if (label) {
-				//logger.info( label, value);
 				if (/connect/i.test(label)) {
 					console.log(label, value);
 				} else if (label === 'message') {
-					//label = logMessages(value);
-					console.log('logMessages:', label, value);
+					if (value.type === 'frontend-log') {
+						let data = value.data;
+						if (data && data.update === 'success') {
+							updateCell(data);
+						}
+					}
 				}
 			}
 		});
