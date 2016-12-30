@@ -3,6 +3,7 @@
 import _ from 'lodash';
 import socket from 'socket.io';
 import bacon from 'baconjs';
+import mongoose from 'mongoose';
 import CellFactory from '../models/cellFactory';
 import SpreadSheetFactory from '../models/spreadSheetFactory';
 //import logger from '../helpers/logger';
@@ -11,25 +12,48 @@ import SpreadSheetFactory from '../models/spreadSheetFactory';
 export default function (server) {
 	const Bacon = bacon.Bacon;
 	const io = socket(server);
+	const UpdateResult = mongoose.model('UpdateResult');
+	const UpdateAttempt = mongoose.model('UpdateAttempt');
+
+	UpdateResult.remove({}); //delete collection
+	UpdateAttempt.remove({});
 
 	// set basic routes
 	var connections = Bacon.fromBinder(function (sink) {
 		io.on('connect', sink);
 	});
 
-	var spreadSheet = null;
+	var spreadSheet = null; // in memory spreadSheet
 	var height = 10;
 	var width = 10;
-	var granularity = 60000;
+	var granularity = 60000; // default timestamp granularity
 
+	/**
+	 * @function getTimestamp
+	 * @description
+	 * Returns a timestamp, the granularity is determined by the
+	 * factor parameter.
+	 *
+	 * @param {Number} factor is the granularity in milliseconds default 60000ms
+	 * @return {Number} a timestamp
+	 */
 	function getTimestamp(factor) {
 		factor = factor || granularity;
-		factor = factor > 0 ? factor : 1;
+		factor = factor > 0 ? factor : 1; // careful division by zero
 		return Math.round((new Date())
 			.getTime() / factor) * factor;
 	}
 
-	function newSpreadSheet() {
+	/**
+	 * @function newSpreadSheet
+	 * @description
+	 * Generates an in memory spreadsheet.
+	 *
+	 * @param {Number} width
+	 * @param {Number} height
+	 * @return {Object} a new instance of a spreadsheet
+	 */
+	function newSpreadSheet(width, height) {
 		var cells = [];
 		for (let i = 1; i < height; i++) {
 			for (let j = 1; j < width; j++) {
@@ -44,106 +68,126 @@ export default function (server) {
 	}
 
 	var messages = connections.flatMap(function (client) {
+		//Create custom event stream
 		return Bacon.fromBinder(function (sink) {
 			client.on('join', function (data) {
 				var userid = {
-					userid: client.id,
+					user_id: client.id,
 					cells: null,
 					transaction_id: getTimestamp(1),
 					height: height,
 					width: width
 				};
+
+				//on first connection create new spreadsheet.
 				if (io.engine.clientsCount === 1 || !spreadSheet) {
-					spreadSheet = newSpreadSheet();
+					spreadSheet = newSpreadSheet(width, height);
 				}
+
 				userid.cells = spreadSheet.getCells();
 				client.emit('userid', userid);
 				sink({
-					type: 'join',
+					type: "join",
 					data: client.id,
 					transaction_id: userid.transaction_id
 				});
 			});
 
+			//client attempting to write a value (update attempt).
 			client.on('write', function (data) {
 				data.type = "update";
 				data.timestamp = data.browserTimestamp ? data.timestamp : getTimestamp();
 				data.transaction_id = getTimestamp(1);
 
-				io.emit('update', data);
+				io.emit("update", data);
 				sink({
-					type: 'write',
+					type: "write",
 					data: data
 				});
 			});
 
+			//receiving client log
 			client.on('log', function (data) {
 				data.type = "log";
 				sink({
-					type: 'frontend-log',
+					type: "frontend-log",
 					data: data
 				});
 			});
 
+			//receiving new timestamp mode from client
 			client.on('timestampMode', function (data) {
 				io.emit('timestampMode', data);
 				data.transaction_id = getTimestamp(1);
 				sink({
-					type: 'timestampMode',
+					type: "timestampMode",
 					data: data
 				});
 			});
 
+			//receiving new timestamp interval from client
 			client.on('timestampInterval', function (data) {
 				var test = parseInt(data.timestampInterval, 10);
 
 				if (_.isNumber(test) && _.isFinite(test)) {
 					test = Math.max(test, 1);
 					test = Math.min(test, 120000);
-				} else {
-					test = granularity;
+					granularity = test;
 				}
-				granularity = test;
+
 				data.timestampInterval = granularity;
 
 				io.emit('timestampInterval', data);
 				data.transaction_id = getTimestamp(1);
 				sink({
-					type: 'timestampInterval',
+					type: "timestampInterval",
 					data: data
 				});
 			});
 		});
 	});
 
+	/**
+	 * @function updateCell
+	 * @description
+	 * Saves successful update to in memory spreadsheet.
+	 *
+	 * @param {Object} cell data
+	 */
+	function updateCell(data) {
+		if (data && data.update === 'success') {
+			let cell = spreadSheet.getCellById(data.cell_id);
+			if (cell) {
+				cell.value = data.value;
+				cell.formula = data.formula;
+			}
+		}
+	}
+
 	function tag(label) {
 		return function (value) {
 			return [label, value];
 		};
 	}
-	/*
-		function logMessages(value) {
-			var label = 'message';
-			var type = value.type;
 
-			switch (type) {
-			case 'join':
-				label = type + value.data;
-				break;
-			case 'update':
-			case 'write':
-				label = 'update' + value.data.user_id + '_' + value.data.element;
-				break;
+	function handleResult(model) {
+		return function (err) {
+			if (err) {
+				console.log('error saving ' + model + ':', err);
 			}
-			return label;
+		};
+	}
+
+	function writeUpdateToLog(value) {
+		if (value.type === 'frontend-log') {
+			updateCell(value.data);
+			let updateResult = new UpdateResult(value);
+			updateResult.save(handleResult('updateResult'));
+		} else if (value.type === 'write') {
+			let updateAttempt = new UpdateAttempt(value);
+			updateAttempt.save(handleResult('updateAttempt'));
 		}
-	*/
-	function updateCell(data) {
-		let cell = spreadSheet.getCellById(data.id);
-		if (cell) {
-			cell.value = data.value;
-			cell.formula = data.formula;
-		}
+		console.log('data:', value);
 	}
 
 	Bacon.mergeAll(
@@ -157,12 +201,7 @@ export default function (server) {
 				if (/connect/i.test(label)) {
 					console.log(label, value);
 				} else if (label === 'message') {
-					if (value.type === 'frontend-log') {
-						let data = value.data;
-						if (data && data.update === 'success') {
-							updateCell(data);
-						}
-					}
+					writeUpdateToLog(value);
 				}
 			}
 		});

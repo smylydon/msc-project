@@ -17,8 +17,8 @@ var CellFactory = (function () {
 		this.id = data.id;
 		this.element = data.element;
 		this.value = 0;
-		this.formula = '';
-		this.expanded = '0';
+		this.formula = "";
+		this.expanded = "0";
 		this.lastUpdated = 0;
 		this.dispose = function () {};
 		this.bus = new Bacon.Bus();
@@ -210,12 +210,12 @@ function processPusherId(value, a, b) {
 		value: value
 	};
 
-	if (pusherId1 === 'self' || pusherId2 === 'self') {
-		obj.pusher_id = 'self';
-	} else if (pusherId1 === 'const' || _.isNull(pusherId2)) {
-		obj.pusher_id = 'const';
-	} else if (_.isNull(pusherId1) || pusherId2 === 'const') {
-		obj.pusher_id = 'const';
+	if (pusherId1 === "self" || pusherId2 === "self") {
+		obj.pusher_id = "self";
+	} else if (pusherId1 === "const" || _.isNull(pusherId2)) {
+		obj.pusher_id = "const";
+	} else if (_.isNull(pusherId1) || pusherId2 === "const") {
+		obj.pusher_id = "const";
 	} else if (pusherId1 === pusherId2) {
 		obj.pusher_id = pusherId1;
 	}
@@ -254,7 +254,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 	function divide(a, b) {
 		var value;
 		if (b.value === 0) {
-			value = '#ERROR DIVISION BY ZERO ERROR';
+			value = "#ERROR DIVISION BY ZERO ERROR";
 		} else {
 			value = a.value / b.value;
 		}
@@ -276,7 +276,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 	 * @return {Object} a new stream
 	 */
 	function fetchAndCombine(token, combiner, pushers) {
-		var right = '';
+		var right = "";
 		var left = calculate(token.left, pushers);
 
 		if (token.right) {
@@ -317,15 +317,15 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		var right = 0;
 		var value = 0;
 
-		if (token.type === 'number') {
+		if (token.type === "number") {
 			value = createConstant(token.token);
-		} else if (token.type === 'cellname') {
+		} else if (token.type === "cellname") {
 			value = spreadSheet.getCellById(token.token);
 			pushers.push(value);
 			value = value.bus;
-		} else if (token.type === 'unary') {
+		} else if (token.type === "unary") {
 			right = calculate(token.right, pushers);
-			if (token.token === '+') {
+			if (token.token === "+") {
 				value = right;
 			} else {
 				left = createConstant(0);
@@ -334,25 +334,25 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		} else if (token.type === "leftparen") {
 			left = calculate(token.left, pushers);
 			right = token.right;
-			if (right.type === 'rightparen') {
+			if (right.type === "rightparen") {
 				value = left;
 			}
-		} else if (token.type === 'operator') {
+		} else if (token.type === "operator") {
 
 			switch (token.token) {
-			case '+':
+			case "+":
 				value = fetchAndCombine(token, add, pushers);
 				break;
-			case '-':
+			case "-":
 				value = fetchAndCombine(token, minus, pushers);
 				break;
-			case '*':
+			case "*":
 				value = fetchAndCombine(token, multiply, pushers);
 				break;
-			case '/':
+			case "/":
 				value = fetchAndCombine(token, divide, pushers);
 				break;
-			case '^':
+			case "^":
 				value = fetchAndCombine(token, power, pushers);
 				break;
 			}
@@ -365,7 +365,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		var element = setter.element;
 
 		cell.value = setter.value;
-		if (element.is(':focus')) {
+		if (element.is(":focus")) {
 			element.val(cell.formula);
 		} else {
 			element.val(cell.value);
@@ -374,11 +374,11 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		cell.lastUpdated = setter.timestamp;
 		log({
 			cell: cell,
-			update: 'success',
-			action: 'brower cell update',
+			update: "success",
+			action: "brower cell update",
 			transaction_id: setter.transaction_id
 		});
-		cell.pusher('self');
+		cell.pusher("self");
 	}
 
 	/**
@@ -391,9 +391,9 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 	 */
 	function log(setter) {
 		var cell = setter.cell;
-		var action = setter.action || 'update';
+		var action = setter.action || "update";
 		var obj = {
-			id: cell.id,
+			cell_id: cell.id,
 			formula: cell.formula,
 			value: cell.value,
 			user_id: userId,
@@ -401,24 +401,24 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 			action: action,
 			transaction_id: setter.transaction_id
 		};
-		socket.emit('log', obj);
+		socket.emit("log", obj);
 	}
 
 	INPUTS.each(function (index, elem) {
 		var element = $(elem);
 		var model = {
 			element: element,
-			id: element.attr('id')
+			id: element.attr("id")
 		};
 		var pushers = [];
 
 		cells.push(model);
 
 		socketUpdate.filter(function (data) {
-				return data.element === model.id;
+				return data.cell_id === model.id;
 			})
 			.onValue(function (data) {
-				var cell = spreadSheet.getCellById(data.element);
+				var cell = spreadSheet.getCellById(data.cell_id);
 				var value = data.formula.toUpperCase();
 				var cellId = cell.id;
 				var timestamp = data.timestamp;
@@ -438,11 +438,11 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 					cell.formula = value;
 					cell.dispose(); //dispose last frp relation
 					cell.dispose = function () {}; //noOp
-					if (_.isUndefined(value) || value === '') {
+					if (_.isUndefined(value) || value === "") {
 						performUpdate(0);
-						cell.expanded = '0';
+						cell.expanded = "0";
 					} else {
-						value = window.parser.parse(value.replace('=', ''), cell.id);
+						value = window.parser.parse(value.replace("=", ""), cell.id);
 						if (_.isString(value) && /ERROR/ig.test(value)) {
 							performUpdate(value);
 						} else {
@@ -477,25 +477,25 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 				} else {
 					log({
 						cell: cell,
-						update: 'fail',
-						action: 'brower cell update',
+						update: "fail",
+						action: "brower cell update",
 						transaction_id: data.transaction_id
 					});
 				}
 			});
 
 		//subscribe to cells focus event
-		element.asEventStream('focus')
+		element.asEventStream("focus")
 			.onValue(function (event) {
 				var elementid = event.target.id;
 				var cell = spreadSheet.getCellById(elementid);
-				var value = cell.formula || '';
+				var value = cell.formula || "";
 				element.val(value);
 			});
 
 		//1.subscribe to cells blur event
 		//2.send data to server.
-		element.asEventStream('blur')
+		element.asEventStream("blur")
 			.map(function (event) {
 				var elementid = event.target.id;
 				var formula = event.target.value;
@@ -503,7 +503,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 				var cell = spreadSheet.getCellById(elementid);
 				element.val(cell.value || 0);
 				return {
-					element: elementid,
+					cell_id: elementid,
 					formula: formula,
 					user_id: userId,
 					browserTimestamp: browserTimestamp,
@@ -511,7 +511,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 				};
 			})
 			.onValue(function (data) {
-				socket.emit('write', data);
+				socket.emit("write", data);
 			});
 	});
 
@@ -527,15 +527,15 @@ function subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate) {
 	//1.Get timestampMode checkbox.
 	//2.Subscribe to event stream.
 	//3.Send status to server.
-	var timestampMode = $('#timestampMode');
+	var timestampMode = $("#timestampMode");
 	timestampMode
-		.asEventStream('click')
+		.asEventStream("click")
 		.map(function (event) {
 			return event.currentTarget.checked;
 		})
 		.onValue(function (data) {
 			spreadSheet.browserTimestamp = data;
-			socket.emit('timestampMode', {
+			socket.emit("timestampMode", {
 				timestampMode: data,
 				user_id: userId
 			});
@@ -563,16 +563,16 @@ function subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate) {
 	//1.Get timestampInterval.
 	//2.Subscribe to event stream.
 	//3.Send status to server.
-	var timestampInterval = $('#timestampInterval');
+	var timestampInterval = $("#timestampInterval");
 	timestampInterval
-		.asEventStream('blur')
+		.asEventStream("blur")
 		.map(function (event) {
 			return event.currentTarget.value;
 		})
 		.onValue(function (data) {
 			var value = calculateInterval(data);
 			if (value) {
-				socket.emit('timestampInterval', {
+				socket.emit("timestampInterval", {
 					timestampInterval: value
 				});
 				granularity = value;
@@ -606,35 +606,35 @@ function fromBinderStream(eventName) {
 // 3. Create custom stream for socket update event.
 // 4. Create custom stream for timestamp mode event.
 // 5. Call processElements to start spreadsheet app.
-socket.on('connect', function (data) {
+socket.on("connect", function (data) {
 	window.parser.setSocket(socket); //need it for logging
 
-	socket.emit('join', 'Hello World from client');
+	socket.emit("join", "Hello World from client");
 
-	socket.on('userid', function (data) {
-		userId = data.userid;
+	socket.on("userid", function (data) {
+		userId = data.user_id;
 
 		drawSpreadSheet(parseInt(data.width), parseInt(data.height));
-		INPUTS = $('.spreadsheet-cell'); //get all inputs
+		INPUTS = $(".spreadsheet-cell"); //get all inputs
 
 		spreadSheet = SpreadSheetFactory.getSpreadSheet();
-		var socketUpdate = fromBinderStream('update');
-		var timestampModeUpdate = fromBinderStream('timestampMode');
-		var timestampIntervalUpdate = fromBinderStream('timestampInterval');
+		var socketUpdate = fromBinderStream("update");
+		var timestampModeUpdate = fromBinderStream("timestampMode");
+		var timestampIntervalUpdate = fromBinderStream("timestampInterval");
 
 		//pass custom streams
 		processElements(socketUpdate);
 		subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate);
 		//console.log('data is:', data);
 		_.forEach(data.cells, function (serverCell) {
-			let cell = spreadSheet.getCellById(serverCell.id);
+			let cell = spreadSheet.getCellById(serverCell.cell_id);
 			if (cell) {
 				cell.lastUpdated = serverCell.lastUpdated;
 				cell.formula = serverCell.formula;
 				cell.expanded = serverCell.expanded;
 				cell.value = serverCell.value;
 				let element = cell.element;
-				if (element.is(':focus') || cell.formula === "") {
+				if (element.is(":focus") || cell.formula === "") {
 					element.val(cell.formula);
 				} else {
 					element.val(cell.value);

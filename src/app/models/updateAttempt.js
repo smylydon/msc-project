@@ -4,9 +4,16 @@ import mongoose from 'mongoose';
 
 // create new schema
 const schema = new mongoose.Schema({
-	title: String,
-	updated: Number,
-	cells: {}
+	type: String,
+	data: {
+		cell_id: String,
+		formula: String,
+		user_id: String,
+		browserTimestamp: Boolean,
+		timestamp: Number,
+		type: {type:String},
+		transaction_id: Number
+	}
 }, {
 	strict: false
 });
@@ -14,4 +21,4 @@ const schema = new mongoose.Schema({
 schema.virtual('date')
 	.get(() => this._id.getTimestamp());
 // assign schema to 'Sheet'
-mongoose.model('Sheet', schema);
+mongoose.model('UpdateAttempt', schema);

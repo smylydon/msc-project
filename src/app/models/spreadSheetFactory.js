@@ -1,4 +1,3 @@
-
 import _ from 'lodash';
 import CellFactory from './cellFactory';
 
@@ -32,7 +31,7 @@ var SpreadSheetFactory = (function () {
 		});
 	};
 
-  /**
+	/**
 	 * @method getCellById
 	 * @description
 	 * Returns the the first cell taht match the id
@@ -57,7 +56,9 @@ var SpreadSheetFactory = (function () {
 	 */
 	SpreadSheet.prototype.addCells = function (cells) {
 		cells = _.isArray(cells) ? cells : [];
-		cells = cells.map(function(data) { return CellFactory.getNewCell(data); });
+		cells = cells.map(function (data) {
+			return CellFactory.getNewCell(data);
+		});
 		Array.prototype.push.apply(this.cells, cells);
 	};
 
@@ -100,7 +101,9 @@ var SpreadSheetFactory = (function () {
 	 * @param {String} id the id of the cell to be removed
 	 */
 	SpreadSheet.prototype.removeCellById = function (id) {
-		_.remove(this.cells,function (cell) { return cell.id === id;});
+		_.remove(this.cells, function (cell) {
+			return cell.id === id;
+		});
 	};
 
 	return {

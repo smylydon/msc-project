@@ -5,9 +5,10 @@
 
 // alternatively, if there are a lot of models to require, do the following:
 
- import path from 'path';
- import glob from 'glob'; // this is NOT in package.json by default
- glob.sync(path.join(__dirname, '!(index|movie).js')).forEach(model => {
-   console.log('model:', model);
-   require(model);
- });
+import path from 'path';
+import glob from 'glob'; // this is NOT in package.json by default
+glob.sync(path.join(__dirname, '!(index|movie).js'))
+	.forEach(model => {
+		console.log('model:', model);
+		require(model);
+	});

@@ -76,21 +76,21 @@ window.parser = (function () {
 		var value = peek();
 
 		if (operatorRegex.test(value)) {
-			result = createToken(value, 'unary');
+			result = createToken(value, "unary");
 			result.right = parseAdditionSubtraction();
 		} else if (numberRegex.test(value)) {
-			result = createToken(value, 'number');
+			result = createToken(value, "number");
 		} else if (/^\($/.test(value)) {
-			result = createToken(value, 'leftparen');
+			result = createToken(value, "leftparen");
 			result.left = parseAdditionSubtraction();
 			value = peek();
-			if (value === ')') {
-				result.right = createToken(value, 'rightparen');
+			if (value === ")") {
+				result.right = createToken(value, "rightparen");
 			}
 		} else if (cellRegex.test(value)) {
-			result = createToken(value, 'cellname');
+			result = createToken(value, "cellname");
 		} else {
-			result = createToken(value, '');
+			result = createToken(value, "");
 		}
 
 		return result;
@@ -113,7 +113,7 @@ window.parser = (function () {
 			token = next();
 			expression = {
 				token: token,
-				type: 'operator',
+				type: "operator",
 				left: expression,
 				right: expressionCallback()
 			};
@@ -131,7 +131,7 @@ window.parser = (function () {
 	 */
 	function parseExponents() {
 		return processOperator(function (token) {
-			return token === '^';
+			return token === "^";
 		}, parsePrimary);
 	}
 
@@ -144,7 +144,7 @@ window.parser = (function () {
 	 */
 	function parseMultiplicationDivision() {
 		return processOperator(function (token) {
-			return token === '*' || token === '/';
+			return token === "*" || token === "/";
 		}, parseExponents);
 	}
 
@@ -157,7 +157,7 @@ window.parser = (function () {
 	 */
 	function parseAdditionSubtraction() {
 		return processOperator(function (token) {
-			return token === '+' || token === '-';
+			return token === "+" || token === "-";
 		}, parseMultiplicationDivision);
 	}
 
@@ -171,10 +171,10 @@ window.parser = (function () {
 		var endLetter = setter.endLetter;
 		var startNum = setter.startNum;
 		var endNum = setter.endNum;
-		var string = '';
+		var string = "";
 		var counter = 0;
-		var clause = direction === 'v' ? verticalClause : horizontalClause;
-		var increment = direction === 'v' ? verticalIncrement : horizontalIncrement;
+		var clause = direction === "v" ? verticalClause : horizontalClause;
+		var increment = direction === "v" ? verticalIncrement : horizontalIncrement;
 
 		function verticalClause() {
 			return startNum <= endNum;
@@ -193,13 +193,13 @@ window.parser = (function () {
 		}
 
 		while (clause()) {
-			string += '+' + startLetter + startNum;
+			string += "+" + startLetter + startNum;
 			increment();
 			counter++;
 		}
-		string = string.replace(/^\+/, '');
-		string = '(' + string + ')';
-		string = setter.fname === 'mean' ? '(' + string + '/' + counter + ')' : string;
+		string = string.replace(/^\+/, "");
+		string = "(" + string + ")";
+		string = setter.fname === "mean" ? "(" + string + "/" + counter + ")" : string;
 		return string;
 	}
 
@@ -215,29 +215,29 @@ window.parser = (function () {
 	 * @returns {String} series representing mean or sum.
 	 */
 	function expandSumAndMean(value) {
-		var cells = value.replace(/(sum|avg|mean|[\(\)]+)/ig, '')
-			.replace(' ', '')
-			.split(':');
-		var string = '#ERROR';
+		var cells = value.replace(/(sum|avg|mean|[\(\)]+)/ig, "")
+			.replace(" ", "")
+			.split(":");
+		var string = "#ERROR";
 
 		var setter = {
 			startLetter: cells[0][0],
 			endLetter: cells[1][0],
 			startNum: parseInt(cells[0][1]),
 			endNum: parseInt(cells[1][1]),
-			fname: /sum/i.test(value) ? 'sum' : 'mean'
+			fname: /sum/i.test(value) ? "sum" : "mean"
 		};
 
 		if (setter.startLetter === setter.endLetter) {
 			if (setter.endNum > setter.startNum) {
-				string = createSumMean('v', setter);
+				string = createSumMean("v", setter);
 			}
 		} else if (setter.endLetter > setter.startLetter) {
 			if (setter.endNum === setter.startNum) {
-				string = createSumMean('h', setter);
+				string = createSumMean("h", setter);
 			}
 		}
-		console.log('>>>', string);
+		console.log(">>>", string);
 		return string;
 	}
 
@@ -284,15 +284,15 @@ window.parser = (function () {
 				Array.prototype.push.apply(visited, visitedCells);
 				label = formula.replace(cellRegex2, expandCells.bind(this, visited));
 			} else {
-				console.log('#ERROR CIRCULAR DEPENDENCY', label, visitedCells);
-				label = '#ERROR CIRCULAR DEPENDENCY';
+				console.log("#ERROR CIRCULAR DEPENDENCY", label, visitedCells);
+				label = "#ERROR CIRCULAR DEPENDENCY";
 			}
 		}
 
 		//if there is more than one term in label
 		//use brackets to preserve arithmetic order
 		var match = label.match(tokenRegEx);
-		label = match && match.length > 1 ? '(' + label + ')' : label;
+		label = match && match.length > 1 ? "(" + label + ")" : label;
 
 		return label;
 	}
@@ -306,18 +306,18 @@ window.parser = (function () {
 	 * @returns {String} parsed user input
 	 */
 	function parse(value, label) {
-		value = value || '';
+		value = value || "";
 		value = value.replace(functionRegex, expandSumAndMean);
 		var circular = value.replace(cellRegex2, expandCells.bind(this, [label]));
 
 		if (/ERROR/ig.test(circular)) {
 			if (/CIRCULAR/ig.test(circular)) {
-				value = '#ERROR CIRCULAR DEPENDENCY';
+				value = "#ERROR CIRCULAR DEPENDENCY";
 			} else {
-				value = '#ERROR';
+				value = "#ERROR";
 			}
 		} else {
-			console.log('tokenize:', value);
+			console.log("tokenize:", value);
 			tokens = tokenize(value);
 			value = parseAdditionSubtraction();
 		}

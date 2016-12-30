@@ -70,7 +70,7 @@ app.use((err, req, res, next) => {
 		stack: config.env === 'development' ? err.stack : ''
 	});
 });
-
+console.log('db is:', config.db);
 // MONGOOSE SET-UP
 mongoose.connect(config.db);
 const db = mongoose.connection;
