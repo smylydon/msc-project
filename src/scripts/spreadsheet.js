@@ -645,9 +645,9 @@ socket.on("connect", function (data) {
 		//pass custom streams
 		processElements(socketUpdate);
 		subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate);
-		//console.log('data is:', data);
+		console.log('data is:', data);
 		_.forEach(data.cells, function (serverCell) {
-			let cell = spreadSheet.getCellById(serverCell.cell_id);
+			let cell = spreadSheet.getCellById(serverCell.id);
 			if (cell) {
 				cell.lastUpdated = serverCell.lastUpdated;
 				cell.formula = serverCell.formula;
