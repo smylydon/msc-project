@@ -4,6 +4,8 @@ var Bacon = Bacon;
 var io = io;
 /* eslint-enable */
 
+function noOp() {} //create it once since it is used multiple times
+
 /*
  * CellFactory
  */
@@ -20,7 +22,7 @@ var CellFactory = (function () {
 		this.formula = "";
 		this.expanded = "0";
 		this.lastUpdated = 0;
-		this.dispose = function () {};
+		this.dispose = noOp;
 		this.bus = new Bacon.Bus();
 	}
 
@@ -159,7 +161,6 @@ function contrainValue(value, min, max) {
  *
  * @param {int} width
  * @param {int} height
- * @return void
  */
 function drawSpreadSheet(width, height) {
 	var table = document.querySelector("table");
@@ -227,7 +228,6 @@ function processPusherId(value, a, b) {
  *
  * @param {Object} socketUpdate stream
  * @param {Object} timestampModeUpdate stream
- * @return void
  */
 function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpdate) {
 	function add(a, b) {
@@ -401,6 +401,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 			action: action,
 			transaction_id: setter.transaction_id
 		};
+		console.log(obj);
 		socket.emit("log", obj);
 	}
 
@@ -433,11 +434,13 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 					});
 				};
 
+				//guard against old updates from server by
+				//comparing timestamps
 				if (timestamp > cell.lastUpdated) {
 					pushers = [];
 					cell.formula = value;
 					cell.dispose(); //dispose last frp relation
-					cell.dispose = function () {}; //noOp
+					cell.dispose = noOp;
 					if (_.isUndefined(value) || value === "") {
 						performUpdate(0);
 						cell.expanded = "0";
@@ -523,6 +526,14 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 	});
 }
 
+/**
+ * @function subscibeCustomStreams
+ * @description
+ * This function takes care of the timestamp mode and timestamp granularity.
+ *
+ * @param {Object} timestampModeUpdate custom stream
+ * @param {Object} timestampIntervalUpdate custom stream
+ */
 function subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate) {
 	//1.Get timestampMode checkbox.
 	//2.Subscribe to event stream.
@@ -593,6 +604,15 @@ var userId;
 var socket = io(); //io.connect('http://localhost:5000');
 /* eslint-enable */
 
+/**
+ * @function fromBinderStream
+ * @description
+ * Given a name of a socket.io event. The is wrapped in a custom BaconJs stream
+ * using the fromBinder operator.
+ *
+ * @param {String eventName name of socket.io event
+ * @returns {Object} custom BaconJs stream
+ */
 function fromBinderStream(eventName) {
 	return Bacon.fromBinder(function (sink) {
 		socket.on(eventName, function (data) {

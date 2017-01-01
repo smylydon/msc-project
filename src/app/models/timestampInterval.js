@@ -7,8 +7,10 @@ const schema = new mongoose.Schema({
 	type: {
 		type: String
 	},
-	data: String,
-	transaction_id: Number
+	data: {
+		timestampInterval: Number,
+		transaction_id: Number
+	}
 }, {
 	strict: false
 });
@@ -16,4 +18,4 @@ const schema = new mongoose.Schema({
 schema.virtual('date')
 	.get(() => this._id.getTimestamp());
 // assign schema to 'Sheet'
-mongoose.model('Join', schema);
+mongoose.model('TimestampInterval', schema);

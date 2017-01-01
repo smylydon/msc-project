@@ -12,11 +12,39 @@ import SpreadSheetFactory from '../models/spreadSheetFactory';
 export default function (server) {
 	const Bacon = bacon.Bacon;
 	const io = socket(server);
+	const Join = mongoose.model('Join');
+	const TimestampInterval = mongoose.model('TimestampInterval');
+	const TimestampMode = mongoose.model('TimestampMode');
 	const UpdateResult = mongoose.model('UpdateResult');
 	const UpdateAttempt = mongoose.model('UpdateAttempt');
+	const mapOfModels = new Map([
+		["join", Join],
+		["timestampInterval", TimestampInterval],
+		["timestampMode", TimestampMode],
+		["write", UpdateAttempt],
+		["frontend-log", UpdateResult]
+	]);
 
-	UpdateResult.remove({}); //delete collection
-	UpdateAttempt.remove({});
+	function callback(model) {
+		return function (err, message) {
+			if (err) {
+				console.log('Error ' + message + ' :', err);
+			}
+		};
+	}
+
+	function handleResult(model) {
+		return callback(' saving ' + model);
+	}
+
+	function removed(model) {
+		return callback(' removing ' + model + ' collection');
+	}
+
+	mapOfModels.forEach(function (value, key) {
+		console.log('key is:', key);
+		value.remove({}, removed(key));
+	});
 
 	// set basic routes
 	var connections = Bacon.fromBinder(function (sink) {
@@ -170,24 +198,25 @@ export default function (server) {
 		};
 	}
 
-	function handleResult(model) {
-		return function (err) {
-			if (err) {
-				console.log('error saving ' + model + ':', err);
-			}
+	function noOp() {
+		this.save = function (callback) {
+			console.log('save dummy');
 		};
 	}
 
-	function writeUpdateToLog(value) {
-		if (value.type === 'frontend-log') {
-			updateCell(value.data);
-			let updateResult = new UpdateResult(value);
-			updateResult.save(handleResult('updateResult'));
-		} else if (value.type === 'write') {
-			let updateAttempt = new UpdateAttempt(value);
-			updateAttempt.save(handleResult('updateAttempt'));
-		}
-		console.log('data:', value);
+	/**
+	 * @function updateMongo
+	 * @description
+	 * Saves data to MongoDb. The nameOfModel is used to find a model
+	 * a Map of all the models. The noOp function is here for safety.
+	 *
+	 * @param {String} name of model to update
+	 * @param {Object} data to update
+	 */
+	function updateMongo(nameOfModel, value) {
+		let aModel = mapOfModels.get(nameOfModel) || noOp;
+		let model = new aModel(value);
+		model.save(handleResult(nameOfModel));
 	}
 
 	Bacon.mergeAll(
@@ -201,8 +230,13 @@ export default function (server) {
 				if (/connect/i.test(label)) {
 					console.log(label, value);
 				} else if (label === 'message') {
-					writeUpdateToLog(value);
+					var type = value.type;
+					if (value.type === 'frontend-log') {
+						updateCell(value.data);
+					}
+					updateMongo(type, value);
 				}
+				console.log('data:', label, value);
 			}
 		});
 }
