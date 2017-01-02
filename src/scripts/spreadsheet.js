@@ -204,6 +204,18 @@ function getTimestamp(factor) {
 var INPUTS = false;
 var cells = [];
 
+/**
+ * @function processPusherId
+ * @description
+ * This facilitates manual pulling of each cell. Since the combine
+ * object will have a pusher_id that is not a cell name. All cells
+ * will know to react instead of ignoring the object.
+ *
+ * @param {Object} combined value of a and b
+ * @param {Object} left node
+ * @param {Object} right node
+ * @returns {Object} combine object
+ */
 function processPusherId(value, a, b) {
 	var pusherId1 = a.pusher_id;
 	var pusherId2 = b.pusher_id;
@@ -249,7 +261,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 	 *
 	 * @param {Number} a
 	 * @param {Number} b
-	 * @return {Object} a new stream
+	 * @returns {Object} a new stream
 	 */
 	function divide(a, b) {
 		var value;
@@ -268,7 +280,10 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 	/**
 	 * @function fetchAndCombine
 	 * @description
-	 *
+	 * Combines the left and right side of current node
+	 * of the parse tree. This assumes the current node
+	 * is a mathematical operator where combiner holds
+	 * the appropriate combinator function.
 	 *
 	 * @param {Object} a token
 	 * @param {Function} combiner - combinator function.
@@ -277,12 +292,12 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 	 */
 	function fetchAndCombine(token, combiner, pushers) {
 		var right = "";
-		var left = calculate(token.left, pushers);
+		var left = calculate(token.left, pushers); //find left value
 
 		if (token.right) {
-			right = calculate(token.right, pushers);
+			right = calculate(token.right, pushers); //find right value
 		} else {
-			right = createConstant(0);
+			right = createConstant(0); //safety pad right with zero
 		}
 		return left.combine(right, combiner);
 	}
@@ -305,8 +320,11 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 	/**
 	 * @function calculate
 	 * @description
-	 * Recursive function that creates a reactive relations given a token.
-	 *
+	 * Recursive function that creates a reactive relations given
+	 * a token. If the current token is a number or a cell, means it
+	 * a leaf node.
+	 * The fetchAndCombine is called to process operators. It calls
+	 * this function to find leaf nodes.
 	 *
 	 * @param {Object} a token
 	 * @param {Array} pusher - array of cells to push.
@@ -338,7 +356,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 				value = left;
 			}
 		} else if (token.type === "operator") {
-
+			//if token is an operator then combine left and right
 			switch (token.token) {
 			case "+":
 				value = fetchAndCombine(token, add, pushers);
@@ -416,9 +434,9 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 		cells.push(model);
 
 		socketUpdate.filter(function (data) {
-				return data.cell_id === model.id;
+				return data.cell_id === model.id; //1. filter for this cell
 			})
-			.onValue(function (data) {
+			.onValue(function (data) { //2. subscribe
 				var cell = spreadSheet.getCellById(data.cell_id);
 				var value = data.formula.toUpperCase();
 				var cellId = cell.id;
@@ -434,21 +452,29 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
 					});
 				};
 
-				//guard against old updates from server by
+				//3. guard against old updates from server by
 				//comparing timestamps
 				if (timestamp > cell.lastUpdated) {
 					pushers = [];
 					cell.formula = value;
 					cell.dispose(); //dispose last frp relation
 					cell.dispose = noOp;
+
+					//guard against empty input
 					if (_.isUndefined(value) || value === "") {
 						performUpdate(0);
 						cell.expanded = "0";
 					} else {
+						//4. parse formula in value
+						//reuse value set it to the parse tree
 						value = window.parser.parse(value.replace("=", ""), cell.id);
+
+						//was there an error
 						if (_.isString(value) && /ERROR/ig.test(value)) {
 							performUpdate(value);
 						} else {
+							//5. no error in parsing create new frp relationship
+							// based on parse tree
 							cell.dispose = calculate(value, pushers)
 								.onValue(function (result) {
 									if (!_.isNumber(result)) {
@@ -534,7 +560,7 @@ function processElements(socketUpdate, timestampModeUpdate, timestampIntervalUpd
  * @param {Object} timestampModeUpdate custom stream
  * @param {Object} timestampIntervalUpdate custom stream
  */
-function subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate) {
+function subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate, data) {
 	//1.Get timestampMode checkbox.
 	//2.Subscribe to event stream.
 	//3.Send status to server.
@@ -553,23 +579,7 @@ function subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate) {
 		});
 
 	//subscribe to timestamp mode update events
-	timestampModeUpdate.onValue(function (data) {
-		var mode = data.timestampMode;
-		spreadSheet.browserTimestamp = mode;
-		timestampMode.prop("checked", mode);
-	});
-
-	function calculateInterval(data) {
-		var test = parseInt(data, 10);
-
-		if (_.isNumber(test) && _.isFinite(test)) {
-			test = Math.max(test, 1);
-			test = Math.min(test, 120000);
-		} else {
-			test = 0;
-		}
-		return test;
-	}
+	timestampModeUpdate.onValue(applyTimestampMode);
 
 	//1.Get timestampInterval.
 	//2.Subscribe to event stream.
@@ -592,11 +602,34 @@ function subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate) {
 		});
 
 	//subscribe to timestampgranularity update events
-	timestampIntervalUpdate.onValue(function (data) {
+	timestampIntervalUpdate.onValue(applyTimestampInterval);
+
+	applyTimestampInterval(data);
+	applyTimestampInterval(data);
+
+	function applyTimestampMode(data) {
+		var mode = data.timestampMode;
+		spreadSheet.browserTimestamp = mode;
+		timestampMode.prop("checked", mode);
+	}
+
+	function applyTimestampInterval(data) {
 		var value = calculateInterval(data.timestampInterval);
 		granularity = value ? value : granularity;
 		timestampInterval.val(granularity);
-	});
+	}
+
+	function calculateInterval(data) {
+		var test = parseInt(data, 10);
+
+		if (_.isNumber(test) && _.isFinite(test)) {
+			test = Math.max(test, 1);
+			test = Math.min(test, 120000);
+		} else {
+			test = 0;
+		}
+		return test;
+	}
 }
 
 var userId;
@@ -636,7 +669,7 @@ socket.on("connect", function (data) {
 
 		drawSpreadSheet(parseInt(data.width), parseInt(data.height));
 		INPUTS = $(".spreadsheet-cell"); //get all inputs
-
+		
 		spreadSheet = SpreadSheetFactory.getSpreadSheet();
 		var socketUpdate = fromBinderStream("update");
 		var timestampModeUpdate = fromBinderStream("timestampMode");
@@ -644,7 +677,7 @@ socket.on("connect", function (data) {
 
 		//pass custom streams
 		processElements(socketUpdate);
-		subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate);
+		subscibeCustomStreams(timestampModeUpdate, timestampIntervalUpdate, data);
 		console.log('data is:', data);
 		_.forEach(data.cells, function (serverCell) {
 			let cell = spreadSheet.getCellById(serverCell.id);

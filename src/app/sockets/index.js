@@ -55,6 +55,7 @@ export default function (server) {
 	var height = 10;
 	var width = 10;
 	var granularity = 60000; // default timestamp granularity
+	var timestampMode = false;
 
 	/**
 	 * @function getTimestamp
@@ -104,7 +105,9 @@ export default function (server) {
 					cells: null,
 					transaction_id: getTimestamp(1),
 					height: height,
-					width: width
+					width: width,
+					granularity: granularity,
+					timestampMode: timestampMode
 				};
 
 				//on first connection create new spreadsheet.
@@ -147,6 +150,7 @@ export default function (server) {
 			client.on('timestampMode', function (data) {
 				io.emit('timestampMode', data);
 				data.transaction_id = getTimestamp(1);
+				timestampMode = Boolean(data.timestampMode);
 				sink({
 					type: "timestampMode",
 					data: data
